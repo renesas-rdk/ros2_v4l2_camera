@@ -77,7 +77,6 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           continue;
         }
 
-        auto stamp = now();
         if (img->encoding != output_encoding_) {
           RCLCPP_WARN_ONCE(
             get_logger(),
@@ -86,7 +85,6 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
             img->encoding.c_str(), output_encoding_.c_str());
           img = convert(*img);
         }
-        img->header.stamp = stamp;
         img->header.frame_id = camera_frame_id_;
 
         auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
@@ -96,7 +94,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           ci->width = img->width;
         }
 
-        ci->header.stamp = stamp;
+        ci->header.stamp = img->header.stamp;
 
         if (get_node_options().use_intra_process_comms()) {
           RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
