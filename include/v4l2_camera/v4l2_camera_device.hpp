@@ -59,12 +59,12 @@ public:
   auto const & getImageSizes() const {return image_sizes_;}
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   bool requestDataFormat(PixelFormat const & format);
-  inline time_t getEpochTimeShift() const
+  inline std::time_t getEpochTimeShift() const
   {
-    timeval epoch_time{};
-    timespec monotonic_time{};
+    std::timespec epoch_time{};
+    std::timespec monotonic_time{};
 
-    gettimeofday(&epoch_time, NULL);
+    clock_gettime(CLOCK_REALTIME, &epoch_time);
     clock_gettime(CLOCK_MONOTONIC, &monotonic_time);
 
     const int64_t uptime_ms =
@@ -72,9 +72,9 @@ public:
       std::round(monotonic_time.tv_nsec / 1000000.0));
     const int64_t epoch_ms =
       epoch_time.tv_sec * 1000 + static_cast<int64_t>(
-      std::round(epoch_time.tv_usec / 1000.0));
+      std::round(epoch_time.tv_nsec / 1000000.0));
 
-    return static_cast<time_t>((epoch_ms - uptime_ms) / 1000);
+    return static_cast<std::time_t>((epoch_ms - uptime_ms) / 1000);
   }
 
   std::string getCameraName();
