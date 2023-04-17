@@ -15,6 +15,7 @@
 #ifndef V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 #define V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 
+#include <cmath>
 #include <map>
 #include <string>
 #include <utility>
@@ -66,6 +67,23 @@ public:
   auto const & getImageSizes() const {return image_sizes_;}
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   bool requestDataFormat(PixelFormat const & format);
+  inline std::time_t getEpochTimeShift() const
+  {
+    std::timespec epoch_time{};
+    std::timespec monotonic_time{};
+
+    clock_gettime(CLOCK_REALTIME, &epoch_time);
+    clock_gettime(CLOCK_MONOTONIC, &monotonic_time);
+
+    const int64_t uptime_ms =
+      monotonic_time.tv_sec * 1000 + static_cast<int64_t>(
+      std::round(monotonic_time.tv_nsec / 1000000.0));
+    const int64_t epoch_ms =
+      epoch_time.tv_sec * 1000 + static_cast<int64_t>(
+      std::round(epoch_time.tv_nsec / 1000000.0));
+
+    return static_cast<std::time_t>((epoch_ms - uptime_ms) / 1000);
+  }
 
   std::string getCameraName();
 
@@ -91,6 +109,8 @@ private:
   PixelFormat cur_data_format_;
 
   std::vector<Buffer> buffers_;
+
+  time_t epoch_time_shift_{getEpochTimeShift()};
 
   // Requests and stores all formats available for this camera
   void listImageFormats();

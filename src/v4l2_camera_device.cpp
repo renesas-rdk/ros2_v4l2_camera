@@ -195,6 +195,9 @@ Image::UniquePtr V4l2CameraDevice::capture()
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
 
+  // Create image object
+  auto img = std::make_unique<Image>();
+
   // Dequeue buffer with new image
   if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf)) {
     RCLCPP_ERROR(
@@ -203,6 +206,12 @@ Image::UniquePtr V4l2CameraDevice::capture()
       std::to_string(errno).c_str());
     return nullptr;
   }
+
+  auto buffer_time_s =
+    buf.timestamp.tv_sec + static_cast<int64_t>(round(buf.timestamp.tv_usec / 1000000.0));
+
+  img->header.stamp.sec = static_cast<time_t>(round(buffer_time_s)) + epoch_time_shift_;
+  img->header.stamp.nanosec = static_cast<int64_t>(buf.timestamp.tv_usec * 1000.0);
 
   // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
@@ -213,8 +222,6 @@ Image::UniquePtr V4l2CameraDevice::capture()
     return nullptr;
   }
 
-  // Create image object
-  auto img = std::make_unique<Image>();
   img->width = cur_data_format_.width;
   img->height = cur_data_format_.height;
   img->step = cur_data_format_.bytesPerLine;
