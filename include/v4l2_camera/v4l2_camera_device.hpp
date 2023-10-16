@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 #include <sensor_msgs/msg/image.hpp>
 
@@ -91,6 +92,8 @@ private:
   PixelFormat cur_data_format_;
 
   std::vector<Buffer> buffers_;
+
+  static std::unordered_map<std::uint32_t, std::string> const pixel_format_map_;
 
   // Requests and stores all formats available for this camera
   void listImageFormats();

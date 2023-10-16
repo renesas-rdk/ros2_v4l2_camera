@@ -33,6 +33,22 @@
 using v4l2_camera::V4l2CameraDevice;
 using sensor_msgs::msg::Image;
 
+// For V4L2 pixel formats, see https://www.kernel.org/doc/html/v4.19/media/uapi/v4l/pixfmt-packed-rgb.html
+// For ROS image encoding strings, see
+// http://docs.ros.org/en/jade/api/sensor_msgs/html/namespacesensor__msgs_1_1image__encodings.html
+std::unordered_map<std::uint32_t, std::string> const V4l2CameraDevice::pixel_format_map_ =
+{
+  {V4L2_PIX_FMT_YUYV, sensor_msgs::image_encodings::YUV422_YUY2},
+  {V4L2_PIX_FMT_UYVY, sensor_msgs::image_encodings::YUV422},
+  {V4L2_PIX_FMT_GREY, sensor_msgs::image_encodings::MONO8},
+  {V4L2_PIX_FMT_BGR24, sensor_msgs::image_encodings::BGR8},
+  {V4L2_PIX_FMT_RGB24, sensor_msgs::image_encodings::RGB8},
+  {V4L2_PIX_FMT_ABGR32, sensor_msgs::image_encodings::BGRA8},
+  {V4L2_PIX_FMT_XBGR32, "bgrx8"},
+  {V4L2_PIX_FMT_ARGB32, "argb8"},
+  {V4L2_PIX_FMT_XRGB32, "xrgb8"},
+};
+
 V4l2CameraDevice::V4l2CameraDevice(std::string device)
 : device_{std::move(device)}
 {
@@ -224,12 +240,10 @@ Image::UniquePtr V4l2CameraDevice::capture()
   img->width = cur_data_format_.width;
   img->height = cur_data_format_.height;
   img->step = cur_data_format_.bytesPerLine;
-  if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_YUYV) {
-    img->encoding = sensor_msgs::image_encodings::YUV422_YUY2;
-  } else if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_UYVY) {
-    img->encoding = sensor_msgs::image_encodings::YUV422;
-  } else if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_GREY) {
-    img->encoding = sensor_msgs::image_encodings::MONO8;
+
+  auto const it = pixel_format_map_.find(cur_data_format_.pixelFormat);
+  if (it != pixel_format_map_.end()) {
+    img->encoding = it->second;
   } else {
     RCLCPP_WARN(
       rclcpp::get_logger("v4l2_camera"),
