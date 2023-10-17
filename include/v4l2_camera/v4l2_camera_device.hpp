@@ -19,14 +19,11 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <unordered_map>
-#include <cstdint>
 
-#include <sensor_msgs/msg/image.hpp>
-
-#include "v4l2_camera/control.hpp"
-#include "v4l2_camera/image_format.hpp"
-#include "v4l2_camera/pixel_format.hpp"
+#include <v4l2_camera/control.hpp>
+#include <v4l2_camera/image_format.hpp>
+#include <v4l2_camera/pixel_format.hpp>
+#include <v4l2_camera/image.hpp>
 
 namespace v4l2_camera
 {
@@ -71,7 +68,7 @@ public:
 
   std::string getCameraName();
 
-  sensor_msgs::msg::Image::UniquePtr capture();
+  Image capture();
 
 private:
   /// Image buffer
@@ -93,8 +90,6 @@ private:
   PixelFormat cur_data_format_;
 
   std::vector<Buffer> buffers_;
-
-  static std::unordered_map<std::uint32_t, std::string> const pixel_format_map_;
 
   // Requests and stores all formats available for this camera
   void listImageFormats();

@@ -24,6 +24,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <system_error>
 
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/image_encodings.hpp>
@@ -31,20 +32,6 @@
 #include "v4l2_camera/fourcc.hpp"
 
 using v4l2_camera::V4l2CameraDevice;
-using sensor_msgs::msg::Image;
-
-// For V4L2 pixel formats, see https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/pixfmt.html
-// For ROS image encoding strings, see
-// https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/include/sensor_msgs/image_encodings.hpp
-std::unordered_map<std::uint32_t, std::string> const V4l2CameraDevice::pixel_format_map_ =
-{
-  {V4L2_PIX_FMT_YUYV, sensor_msgs::image_encodings::YUV422_YUY2},
-  {V4L2_PIX_FMT_UYVY, sensor_msgs::image_encodings::YUV422},
-  {V4L2_PIX_FMT_GREY, sensor_msgs::image_encodings::MONO8},
-  {V4L2_PIX_FMT_BGR24, sensor_msgs::image_encodings::BGR8},
-  {V4L2_PIX_FMT_RGB24, sensor_msgs::image_encodings::RGB8},
-  {V4L2_PIX_FMT_ABGR32, sensor_msgs::image_encodings::BGRA8}
-};
 
 V4l2CameraDevice::V4l2CameraDevice(std::string device)
 : device_{std::move(device)}
@@ -201,7 +188,7 @@ std::string V4l2CameraDevice::getCameraName()
   return name;
 }
 
-Image::UniquePtr V4l2CameraDevice::capture()
+v4l2_camera::Image V4l2CameraDevice::capture()
 {
   auto buf = v4l2_buffer{};
 
@@ -209,47 +196,21 @@ Image::UniquePtr V4l2CameraDevice::capture()
   buf.memory = V4L2_MEMORY_MMAP;
 
   // Dequeue buffer with new image
-  if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf)) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("v4l2_camera"),
-      "Error dequeueing buffer: %s (%s)", strerror(errno),
-      std::to_string(errno).c_str());
-    return nullptr;
-  }
-
-  // Create image object
-  auto img = std::make_unique<Image>();
+  if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf))
+    throw std::system_error {errno, std::system_category(), "Error dequeueing buffer"};
 
   // Copy over buffer data
   auto const & buffer = buffers_[buf.index];
-  img->data.assign(buffer.start, buffer.start + cur_data_format_.imageByteSize);
+  Image image {
+    cur_data_format_,
+    {buffer.start, buffer.start + cur_data_format_.imageByteSize},
+  };
 
   // Requeue buffer to be reused for new captures
-  if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
-    RCLCPP_ERROR(
-      rclcpp::get_logger("v4l2_camera"),
-      "Error re-queueing buffer: %s (%s)", strerror(errno),
-      std::to_string(errno).c_str());
-    return nullptr;
-  }
+  if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf))
+    throw std::system_error {errno, std::system_category(), "Error re-queueing buffer"};
 
-  // Fill in remaining image information
-  img->width = cur_data_format_.width;
-  img->height = cur_data_format_.height;
-  img->step = cur_data_format_.bytesPerLine;
-
-  auto const it = pixel_format_map_.find(cur_data_format_.pixelFormat);
-  if (it != pixel_format_map_.end()) {
-    img->encoding = it->second;
-  } else {
-    RCLCPP_WARN(
-      rclcpp::get_logger("v4l2_camera"),
-      "Current pixel format is not supported yet: %s %d",
-      FourCC::toString(cur_data_format_.pixelFormat).c_str(),
-      cur_data_format_.pixelFormat);
-  }
-
-  return img;
+  return image;
 }
 
 int32_t V4l2CameraDevice::getControlValue(uint32_t id) const

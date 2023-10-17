@@ -6,9 +6,9 @@ if(NOT CMAKE_C_STANDARD)
   set(CMAKE_C_STANDARD 99)
 endif()
 
-# Default to C++14
+# Default to C++20
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 20)
   set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 endif()
 
@@ -26,6 +26,7 @@ find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 
 add_library(v4l2_camera
+  src/image_encoding.cpp
   src/parameters.cpp
   src/v4l2_camera.cpp
   src/v4l2_camera_device.cpp)
