@@ -87,24 +87,25 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           auto captured_image = camera_->capture();
           auto const stamp = now();
           auto const image_encoding = imageEncoding(captured_image.format.pixelFormat);
-          auto img = std::make_unique<sensor_msgs::msg::Image>();
 
-          if (image_encoding == output_encoding_) {
-            img->data = std::move(captured_image.data);
-          } else {
-            RCLCPP_WARN_STREAM_ONCE(
-              get_logger(),
-              "Image encoding not the same as requested output, performing possibly slow conversion: " <<
-              image_encoding << " => " << output_encoding_);
-            // img = convert(captured_image);
-          }
+          auto img = std::make_unique<sensor_msgs::msg::Image>();
           img->header.stamp = stamp;
           img->header.frame_id = camera_frame_id_;
-          img->encoding = output_encoding_;
+          img->encoding = image_encoding;
           img->width = captured_image.format.width;
           img->height = captured_image.format.height;
           img->step = captured_image.format.bytesPerLine;
           img->is_bigendian = std::endian::native == std::endian::big;
+          img->data = std::move(captured_image.data);
+
+          if (image_encoding != output_encoding_) {
+            RCLCPP_WARN_STREAM_ONCE(
+              get_logger(),
+              "Image encoding not the same as requested output, performing possibly slow conversion: " <<
+              image_encoding << " => " << output_encoding_);
+            img = convert(*img);
+          }
+
 
           auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
           if (!checkCameraInfo(*img, *ci)) {
