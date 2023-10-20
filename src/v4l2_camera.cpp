@@ -78,7 +78,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   }
 
   // Start capture thread
-  capture_thread_ = std::thread{
+  capture_thread_ = std::thread {
     [this]() -> void {
       while (rclcpp::ok() && !canceled_.load()) {
         RCLCPP_DEBUG(get_logger(), "Capture...");
@@ -86,17 +86,39 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         try {
           auto captured_image = camera_->capture();
           auto const stamp = now();
-          auto const image_encoding = imageEncoding(captured_image.format.pixelFormat);
+          auto const image_encoding = imageEncodingString(captured_image.format.pixelFormat);
+
+          std_msgs::msg::Header header;
+          header.stamp = stamp;
+          header.frame_id = camera_frame_id_;
 
           auto img = std::make_unique<sensor_msgs::msg::Image>();
-          img->header.stamp = stamp;
-          img->header.frame_id = camera_frame_id_;
-          img->encoding = image_encoding;
-          img->width = captured_image.format.width;
-          img->height = captured_image.format.height;
-          img->step = captured_image.format.bytesPerLine;
-          img->is_bigendian = std::endian::native == std::endian::big;
-          img->data = std::move(captured_image.data);
+
+          switch (imageEncodingType(captured_image.format.pixelFormat))
+          {
+            case ImageEncodingType::raw:
+            {
+              img->header = header;
+              img->encoding = image_encoding;
+              img->width = captured_image.format.width;
+              img->height = captured_image.format.height;
+              img->step = captured_image.format.bytesPerLine;
+              img->is_bigendian = std::endian::native == std::endian::big;
+              img->data = std::move(captured_image.data);
+
+              break;
+            }
+            case ImageEncodingType::compressed:
+            {
+             break;
+            }
+            default:
+            {
+              RCLCPP_ERROR_STREAM_ONCE(get_logger(),
+                "Can't get image encoding type for " << FourCC::toString(captured_image.format.pixelFormat));
+              break;
+            }
+          }
 
           if (image_encoding != output_encoding_) {
             RCLCPP_WARN_STREAM_ONCE(
