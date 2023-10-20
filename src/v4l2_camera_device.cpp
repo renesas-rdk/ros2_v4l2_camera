@@ -188,7 +188,7 @@ v4l2_camera::Image V4l2CameraDevice::capture()
   auto const & buffer = buffers_[buf.index];
   Image image {
     cur_data_format_,
-    {buffer.start, buffer.start + cur_data_format_.imageByteSize},
+    {buffer.start, buffer.start + buf.bytesused},
   };
 
   // Requeue buffer to be reused for new captures

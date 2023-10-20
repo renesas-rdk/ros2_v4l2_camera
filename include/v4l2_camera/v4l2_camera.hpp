@@ -23,6 +23,7 @@
 
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/image_transport.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
 #include <rclcpp/rclcpp.hpp>
 
@@ -50,6 +51,9 @@ private:
 
   // Publisher used for inter process comm
   image_transport::CameraPublisher camera_transport_pub_;
+
+  // Compressed image publisher
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_image_pub_;
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 

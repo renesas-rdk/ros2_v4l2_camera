@@ -50,6 +50,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
   }
 
+  compressed_image_pub_ = create_publisher<sensor_msgs::msg::CompressedImage>("image_compressed", rclcpp::SensorDataQoS {});
+
   parameters_.declareStaticParameters();
   parameters_.declareOutputParameters();
 
@@ -130,6 +132,8 @@ void V4L2Camera::captureThreadFunc()
             cv_bridge::toCvCopy(*compressed_img, output_encoding_)->toImageMsg(*img);
             RCLCPP_INFO_STREAM_ONCE(get_logger(), "Decompressing " << image_encoding << " => " << output_encoding_);
           }
+
+          compressed_image_pub_->publish(std::move(compressed_img));
 
           break;
         }
