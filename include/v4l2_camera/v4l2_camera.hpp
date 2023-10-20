@@ -64,8 +64,8 @@ private:
   void applyParameters();
   bool handleParameter(rclcpp::Parameter const & param);
 
-  bool requestPixelFormat(std::string const & fourcc);
-  bool requestImageSize(std::vector<int64_t> const & size);
+  void requestPixelFormat(std::string const & fourcc);
+  void requestImageSize(std::vector<int64_t> const & size);
 
   sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
 
@@ -73,7 +73,7 @@ private:
     sensor_msgs::msg::Image const & img,
     sensor_msgs::msg::CameraInfo const & ci);
 
-    void captureThreadFunc();
+  void captureThreadFunc();
 };
 
 }  // namespace v4l2_camera

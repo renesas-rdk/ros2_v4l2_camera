@@ -56,9 +56,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Prepare camera
   camera_ = std::make_shared<V4l2CameraDevice>(parameters_.getVideoDevice());
 
-  if (!camera_->open()) {
-    return;
-  }
+  camera_->open();
 
   cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
 
@@ -73,9 +71,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     });
 
   // Start the camera
-  if (!camera_->start()) {
-    return;
-  }
+  camera_->start();
 
   // Start capture thread
   capture_thread_ = std::thread {std::bind(&V4L2Camera::captureThreadFunc, this)};
@@ -237,100 +233,106 @@ void V4L2Camera::applyParameters()
 bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
 {
   auto name = param.get_name();
-  if (parameters_.isControlParameter(param)) {
-    auto control_id = parameters_.getControlId(param);
-    auto control = camera_->queryControl(control_id);
-    if (control.inactive) {
-      RCLCPP_WARN(get_logger(), "Cannot set inactive control: %s", control.name.c_str());
-      return false;
-    }
-    switch (param.get_type()) {
-      case rclcpp::ParameterType::PARAMETER_BOOL:
-        if (static_cast<bool>(camera_->getControlValue(control.id)) == param.as_bool()) {
-          RCLCPP_DEBUG(
-            get_logger(), "Parameter %s already set at requested value: %d",
-            control.name.c_str(), param.as_bool());
+  try
+  {
+    if (parameters_.isControlParameter(param)) {
+      auto control_id = parameters_.getControlId(param);
+      auto control = camera_->queryControl(control_id);
+      if (control.inactive) {
+        RCLCPP_WARN(get_logger(), "Cannot set inactive control: %s", control.name.c_str());
+        return false;
+      }
+      switch (param.get_type()) {
+        case rclcpp::ParameterType::PARAMETER_BOOL:
+          if (static_cast<bool>(camera_->getControlValue(control.id)) == param.as_bool()) {
+            RCLCPP_DEBUG(
+              get_logger(), "Parameter %s already set at requested value: %d",
+              control.name.c_str(), param.as_bool());
+            return true;
+          }
+          camera_->setControlValue(control_id, param.as_bool());
           return true;
-        }
-        return camera_->setControlValue(control_id, param.as_bool());
-      case rclcpp::ParameterType::PARAMETER_INTEGER:
-        if (camera_->getControlValue(control.id) == param.as_int()) {
-          RCLCPP_DEBUG(
-            get_logger(), "Parameter %s already set at requested value: %ld",
-            control.name.c_str(), param.as_int());
+        case rclcpp::ParameterType::PARAMETER_INTEGER:
+          if (camera_->getControlValue(control.id) == param.as_int()) {
+            RCLCPP_DEBUG(
+              get_logger(), "Parameter %s already set at requested value: %ld",
+              control.name.c_str(), param.as_int());
+            return true;
+          }
+          camera_->setControlValue(control_id, param.as_int());
           return true;
-        }
-        return camera_->setControlValue(control_id, param.as_int());
-      default:
-        RCLCPP_WARN(
-          get_logger(),
-          "Control parameter type not currently supported: %s, for parameter: %s",
-          std::to_string(unsigned(param.get_type())).c_str(), param.get_name().c_str());
+        default:
+          RCLCPP_WARN(
+            get_logger(),
+            "Control parameter type not currently supported: %s, for parameter: %s",
+            std::to_string(unsigned(param.get_type())).c_str(), param.get_name().c_str());
+      }
+    } else if (param.get_name() == "output_encoding") {
+      output_encoding_ = param.as_string();
+      return true;
+    } else if (param.get_name() == "pixel_format") {
+      camera_->stop();
+      requestPixelFormat(param.as_string());
+      camera_->start();
+      return true;
+    } else if (param.get_name() == "image_size") {
+      camera_->stop();
+      requestImageSize(param.as_integer_array());
+      camera_->start();
+      return true;
+    } else if (param.get_name() == "camera_info_url") {
+      auto camera_info_url = param.as_string();
+      if (cinfo_->validateURL(camera_info_url)) {
+        return cinfo_->loadCameraInfo(camera_info_url);
+      } else {
+        RCLCPP_WARN(get_logger(), "Invalid camera info URL: %s", camera_info_url.c_str());
+        return false;
+      }
     }
-  } else if (param.get_name() == "output_encoding") {
-    output_encoding_ = param.as_string();
-    return true;
-  } else if (param.get_name() == "pixel_format") {
-    camera_->stop();
-    auto success = requestPixelFormat(param.as_string());
-    camera_->start();
-    return success;
-  } else if (param.get_name() == "image_size") {
-    camera_->stop();
-    auto success = requestImageSize(param.as_integer_array());
-    camera_->start();
-    return success;
-  } else if (param.get_name() == "camera_info_url") {
-    auto camera_info_url = param.as_string();
-    if (cinfo_->validateURL(camera_info_url)) {
-      return cinfo_->loadCameraInfo(camera_info_url);
-    } else {
-      RCLCPP_WARN(get_logger(), "Invalid camera info URL: %s", camera_info_url.c_str());
-      return false;
-    }
+  }
+  catch (std::runtime_error const& e)
+  {
+    RCLCPP_ERROR_STREAM(get_logger(), e.what());
+    return false;
   }
 
   return false;
 }
 
-bool V4L2Camera::requestPixelFormat(std::string const & fourcc)
+void V4L2Camera::requestPixelFormat(std::string const & fourcc)
 {
-  if (fourcc.size() != 4) {
-    RCLCPP_ERROR(get_logger(), "Invalid pixel format size: must be a 4 character code (FOURCC).");
-    return false;
-  }
+  if (fourcc.size() != 4)
+    throw std::logic_error{"Invalid pixel format size: must be a 4 character code (FOURCC)."};
 
   auto code = v4l2_fourcc(fourcc[0], fourcc[1], fourcc[2], fourcc[3]);
 
   auto dataFormat = camera_->getCurrentDataFormat();
   // Do not apply if camera already runs at given pixel format
   if (dataFormat.pixelFormat == code) {
-    return true;
+    return;
   }
 
   dataFormat.pixelFormat = code;
-  return camera_->requestDataFormat(dataFormat);
+  camera_->requestDataFormat(dataFormat);
 }
 
-bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
+void V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
 {
   if (size.size() != 2) {
-    RCLCPP_WARN(
-      get_logger(),
-      "Invalid image size; expected dimensions: 2, actual: %lu",
-      size.size());
-    return false;
+    std::stringstream msg;
+    msg << "Invalid image size; expected dimensions: 2, actual: " << size.size();
+    throw std::invalid_argument {msg.str()};
   }
 
   auto dataFormat = camera_->getCurrentDataFormat();
   // Do not apply if camera already runs at given size
   if (dataFormat.width == size[0] && dataFormat.height == size[1]) {
-    return true;
+    return;
   }
 
   dataFormat.width = size[0];
   dataFormat.height = size[1];
-  return camera_->requestDataFormat(dataFormat);
+  camera_->requestDataFormat(dataFormat);
 }
 
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
