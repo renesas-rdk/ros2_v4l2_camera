@@ -72,6 +72,8 @@ private:
   bool checkCameraInfo(
     sensor_msgs::msg::Image const & img,
     sensor_msgs::msg::CameraInfo const & ci);
+
+    void captureThreadFunc();
 };
 
 }  // namespace v4l2_camera

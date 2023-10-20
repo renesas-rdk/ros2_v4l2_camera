@@ -78,89 +78,97 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   }
 
   // Start capture thread
-  capture_thread_ = std::thread {
-    [this]() -> void {
-      while (rclcpp::ok() && !canceled_.load()) {
-        RCLCPP_DEBUG(get_logger(), "Capture...");
+  capture_thread_ = std::thread {std::bind(&V4L2Camera::captureThreadFunc, this)};
+}
 
-        try {
-          auto captured_image = camera_->capture();
-          auto const stamp = now();
-          auto const image_encoding = imageEncodingString(captured_image.format.pixelFormat);
+void V4L2Camera::captureThreadFunc()
+{
+  while (rclcpp::ok() && !canceled_.load()) {
+    RCLCPP_DEBUG(get_logger(), "Capture...");
 
-          std_msgs::msg::Header header;
-          header.stamp = stamp;
-          header.frame_id = camera_frame_id_;
+    try {
+      auto captured_image = camera_->capture();
+      auto const stamp = now();
+      auto const image_encoding = imageEncodingString(captured_image.format.pixelFormat);
 
-          auto img = std::make_unique<sensor_msgs::msg::Image>();
+      std_msgs::msg::Header header;
+      header.stamp = stamp;
+      header.frame_id = camera_frame_id_;
 
-          switch (imageEncodingType(captured_image.format.pixelFormat))
-          {
-            case ImageEncodingType::raw:
-            {
-              img->header = header;
-              img->encoding = image_encoding;
-              img->width = captured_image.format.width;
-              img->height = captured_image.format.height;
-              img->step = captured_image.format.bytesPerLine;
-              img->is_bigendian = std::endian::native == std::endian::big;
-              img->data = std::move(captured_image.data);
+      sensor_msgs::msg::Image::UniquePtr img;
 
-              if (image_encoding != output_encoding_) {
-                RCLCPP_WARN_STREAM_ONCE(
-                  get_logger(),
-                  "Image encoding not the same as requested output, performing possibly slow conversion: " <<
-                  image_encoding << " => " << output_encoding_);
-                img = convert(*img);
-              }
+      switch (imageEncodingType(captured_image.format.pixelFormat))
+      {
+        case ImageEncodingType::raw:
+        {
+          img = std::make_unique<sensor_msgs::msg::Image>();
+          img->header = header;
+          img->encoding = image_encoding;
+          img->width = captured_image.format.width;
+          img->height = captured_image.format.height;
+          img->step = captured_image.format.bytesPerLine;
+          img->is_bigendian = std::endian::native == std::endian::big;
+          img->data = std::move(captured_image.data);
 
-              break;
-            }
-            case ImageEncodingType::compressed:
-            {
-              auto compressed_img = std::make_unique<sensor_msgs::msg::CompressedImage>();
-              compressed_img->header = header;
-              compressed_img->format = image_encoding;
-              compressed_img->data = std::move(captured_image.data);
-
-              // decompress into raw image
-              // if (pub_image->get_subscription_count())
-                cv_bridge::toCvCopy(*compressed_img, output_encoding_)->toImageMsg(*img);
-              RCLCPP_INFO_STREAM_ONCE(get_logger(), "Decompressing " << image_encoding << " => " << output_encoding_);
-
-              break;
-            }
-            default:
-            {
-              RCLCPP_ERROR_STREAM_ONCE(get_logger(),
-                "Can't get image encoding type for " << FourCC::toString(captured_image.format.pixelFormat));
-              break;
-            }
+          if (image_encoding != output_encoding_) {
+            RCLCPP_WARN_STREAM_ONCE(
+              get_logger(),
+              "Image encoding not the same as requested output, performing possibly slow conversion: " <<
+              image_encoding << " => " << output_encoding_);
+            img = convert(*img);
           }
 
-          auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
-          if (!checkCameraInfo(*img, *ci)) {
-            *ci = sensor_msgs::msg::CameraInfo{};
-            ci->height = img->height;
-            ci->width = img->width;
-          }
-
-          ci->header.stamp = stamp;
-          ci->header.frame_id = camera_frame_id_;
-
-          if (get_node_options().use_intra_process_comms()) {
-            RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
-            image_pub_->publish(std::move(img));
-            info_pub_->publish(std::move(ci));
-          } else {
-            camera_transport_pub_.publish(*img, *ci);
-          }
+          break;
         }
-        catch (std::system_error const&) {
-          // Failed capturing image, assume it is temporarily and continue a bit later
-          std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        case ImageEncodingType::compressed:
+        {
+          auto compressed_img = std::make_unique<sensor_msgs::msg::CompressedImage>();
+          compressed_img->header = header;
+          compressed_img->format = image_encoding;
+          compressed_img->data = std::move(captured_image.data);
+
+          // decompress into raw image
+          // if (pub_image->get_subscription_count())
+          {
+            img = std::make_unique<sensor_msgs::msg::Image>();
+            cv_bridge::toCvCopy(*compressed_img, output_encoding_)->toImageMsg(*img);
+            RCLCPP_INFO_STREAM_ONCE(get_logger(), "Decompressing " << image_encoding << " => " << output_encoding_);
+          }
+
+          break;
+        }
+        default:
+        {
+          RCLCPP_ERROR_STREAM_ONCE(get_logger(),
+            "Can't get image encoding type for " << FourCC::toString(captured_image.format.pixelFormat));
+          break;
         }
       }
+
+      if (img)
+      {
+        auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
+        if (!checkCameraInfo(*img, *ci)) {
+          *ci = sensor_msgs::msg::CameraInfo{};
+          ci->height = img->height;
+          ci->width = img->width;
+        }
+
+        ci->header.stamp = stamp;
+        ci->header.frame_id = camera_frame_id_;
+
+        if (get_node_options().use_intra_process_comms()) {
+          RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
+          image_pub_->publish(std::move(img));
+          info_pub_->publish(std::move(ci));
+        } else {
+          camera_transport_pub_.publish(*img, *ci);
+        }
+      }
+    }
+    catch (std::system_error const&) {
+      // Failed capturing image, assume it is temporarily and continue a bit later
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   };
 }
