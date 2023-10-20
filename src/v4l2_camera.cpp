@@ -106,11 +106,29 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
               img->is_bigendian = std::endian::native == std::endian::big;
               img->data = std::move(captured_image.data);
 
+              if (image_encoding != output_encoding_) {
+                RCLCPP_WARN_STREAM_ONCE(
+                  get_logger(),
+                  "Image encoding not the same as requested output, performing possibly slow conversion: " <<
+                  image_encoding << " => " << output_encoding_);
+                img = convert(*img);
+              }
+
               break;
             }
             case ImageEncodingType::compressed:
             {
-             break;
+              auto compressed_img = std::make_unique<sensor_msgs::msg::CompressedImage>();
+              compressed_img->header = header;
+              compressed_img->format = image_encoding;
+              compressed_img->data = std::move(captured_image.data);
+
+              // decompress into raw image
+              // if (pub_image->get_subscription_count())
+                cv_bridge::toCvCopy(*compressed_img, output_encoding_)->toImageMsg(*img);
+              RCLCPP_INFO_STREAM_ONCE(get_logger(), "Decompressing " << image_encoding << " => " << output_encoding_);
+
+              break;
             }
             default:
             {
@@ -119,15 +137,6 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
               break;
             }
           }
-
-          if (image_encoding != output_encoding_) {
-            RCLCPP_WARN_STREAM_ONCE(
-              get_logger(),
-              "Image encoding not the same as requested output, performing possibly slow conversion: " <<
-              image_encoding << " => " << output_encoding_);
-            img = convert(*img);
-          }
-
 
           auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
           if (!checkCameraInfo(*img, *ci)) {
