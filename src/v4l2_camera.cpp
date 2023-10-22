@@ -22,6 +22,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 
 #include <sensor_msgs/image_encodings.hpp>
 
@@ -309,7 +310,7 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
 void V4L2Camera::requestPixelFormat(std::string const & fourcc)
 {
   if (fourcc.size() != 4)
-    throw std::logic_error{"Invalid pixel format size: must be a 4 character code (FOURCC)."};
+    throw std::invalid_argument {"Invalid pixel format size: must be a 4 character code (FOURCC)."};
 
   auto code = v4l2_fourcc(fourcc[0], fourcc[1], fourcc[2], fourcc[3]);
 
