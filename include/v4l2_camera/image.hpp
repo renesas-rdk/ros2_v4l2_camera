@@ -1,3 +1,17 @@
+// Copyright 2023 Mużyk Biełarus
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
 #include <vector>
@@ -5,11 +19,15 @@
 
 #include <v4l2_camera/pixel_format.hpp>
 
-namespace v4l2_camera
+namespace v4l2_camera {
+
+/**
+ * @brief Image format and data, raw or compressed.
+*/
+struct Image
 {
-    struct Image
-    {
-        PixelFormat format;
-        std::vector<std::uint8_t> data;
-    };
+    PixelFormat format;
+    std::vector<std::uint8_t> data;
+};
+
 }

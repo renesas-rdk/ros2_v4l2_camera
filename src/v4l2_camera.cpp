@@ -16,12 +16,12 @@
 
 #include <cv_bridge/cv_bridge.h>
 
+#include <bit>
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <bit>
 
 #include <sensor_msgs/image_encodings.hpp>
 
@@ -111,7 +111,8 @@ void V4L2Camera::captureThreadFunc()
           if (image_encoding != output_encoding_) {
             RCLCPP_WARN_STREAM_ONCE(
               get_logger(),
-              "Image encoding not the same as requested output, performing possibly slow conversion: " <<
+              "Image encoding not the same as requested output, "
+              "performing possibly slow conversion: " <<
               image_encoding << " => " << output_encoding_);
             img = convert(*img);
           }
@@ -130,7 +131,8 @@ void V4L2Camera::captureThreadFunc()
           {
             img = std::make_unique<sensor_msgs::msg::Image>();
             cv_bridge::toCvCopy(*compressed_img, output_encoding_)->toImageMsg(*img);
-            RCLCPP_INFO_STREAM_ONCE(get_logger(), "Decompressing " << image_encoding << " => " << output_encoding_);
+            RCLCPP_INFO_STREAM_ONCE(get_logger(),
+              "Decompressing " << image_encoding << " => " << output_encoding_);
           }
 
           compressed_image_pub_->publish(std::move(compressed_img));
@@ -140,7 +142,8 @@ void V4L2Camera::captureThreadFunc()
         default:
         {
           RCLCPP_ERROR_STREAM_ONCE(get_logger(),
-            "Can't get image encoding type for " << FourCC::toString(captured_image.format.pixelFormat));
+            "Can't get image encoding type for " <<
+            FourCC::toString(captured_image.format.pixelFormat));
           break;
         }
       }
@@ -170,7 +173,7 @@ void V4L2Camera::captureThreadFunc()
       // Failed capturing image, assume it is temporarily and continue a bit later
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
-  };
+  }
 }
 
 V4L2Camera::~V4L2Camera()
