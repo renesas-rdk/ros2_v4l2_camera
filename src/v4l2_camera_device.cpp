@@ -103,17 +103,14 @@ void V4l2CameraDevice::open()
 
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available controls: ");
   for (auto const & control : controls_) {
-    try
-    {
+    try {
       RCLCPP_INFO_STREAM(
         rclcpp::get_logger("v4l2_camera"),
-          "  " << control.name << " (" <<
+        "  " << control.name << " (" <<
           static_cast<unsigned>(control.type) << ") = " <<
           getControlValue(control.id) <<
           (control.inactive ? " [inactive]" : ""));
-    }
-    catch (std::runtime_error const& e)
-    {
+    } catch (std::runtime_error const & e) {
       RCLCPP_ERROR_STREAM(rclcpp::get_logger("v4l2_camera"), e.what());
     }
   }
@@ -131,14 +128,16 @@ void V4l2CameraDevice::start()
     buf.memory = V4L2_MEMORY_MMAP;
     buf.index = buffer.index;
 
-    if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf))
+    if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
       throw std::system_error {errno, std::system_category(), "Buffer failure on capture start"};
+    }
   }
 
   // Start stream
   unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  if (-1 == ioctl(fd_, VIDIOC_STREAMON, &type))
-    throw std::system_error {errno, std::system_category(),  "Failed stream start"};
+  if (-1 == ioctl(fd_, VIDIOC_STREAMON, &type)) {
+    throw std::system_error {errno, std::system_category(), "Failed stream start"};
+  }
 }
 
 void V4l2CameraDevice::stop()
@@ -146,8 +145,9 @@ void V4l2CameraDevice::stop()
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Stopping camera");
   // Stop stream
   unsigned type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  if (-1 == ioctl(fd_, VIDIOC_STREAMOFF, &type))
+  if (-1 == ioctl(fd_, VIDIOC_STREAMOFF, &type)) {
     throw std::system_error {errno, std::system_category(), "Failed stream stop"};
+  }
 
   // De-initialize buffers
   for (auto const & buffer : buffers_) {
@@ -181,8 +181,9 @@ v4l2_camera::Image V4l2CameraDevice::capture()
   buf.memory = V4L2_MEMORY_MMAP;
 
   // Dequeue buffer with new image
-  if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf))
+  if (-1 == ioctl(fd_, VIDIOC_DQBUF, &buf)) {
     throw std::system_error {errno, std::system_category(), "Error dequeueing buffer"};
+  }
 
   // Copy over buffer data
   auto const & buffer = buffers_[buf.index];
@@ -192,8 +193,9 @@ v4l2_camera::Image V4l2CameraDevice::capture()
   };
 
   // Requeue buffer to be reused for new captures
-  if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf))
+  if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
     throw std::system_error {errno, std::system_category(), "Error re-queueing buffer"};
+  }
 
   return image;
 }
@@ -248,8 +250,9 @@ void V4l2CameraDevice::requestDataFormat(const PixelFormat & format)
     FourCC::toString(format.pixelFormat).c_str());
 
   // Perform request
-  if (-1 == ioctl(fd_, VIDIOC_S_FMT, &formatReq))
+  if (-1 == ioctl(fd_, VIDIOC_S_FMT, &formatReq)) {
     throw std::system_error {errno, std::system_category(), "Failed requesting pixel format"};
+  }
 
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Success");
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
@@ -415,8 +418,9 @@ void V4l2CameraDevice::initMemoryMapping()
   ioctl(fd_, VIDIOC_REQBUFS, &req);
 
   // Didn't get more than 1 buffer
-  if (req.count < 2)
+  if (req.count < 2) {
     throw std::runtime_error {"Insufficient buffer memory"};
+  }
 
   buffers_ = std::vector<Buffer>(req.count);
 
@@ -440,7 +444,8 @@ void V4l2CameraDevice::initMemoryMapping()
         MAP_SHARED /* recommended */,
         fd_, buf.m.offset));
 
-    if (MAP_FAILED == buffers_[i].start)
+    if (MAP_FAILED == buffers_[i].start) {
       throw std::system_error {errno, std::system_category(), "Failed mapping device memory"};
+    }
   }
 }

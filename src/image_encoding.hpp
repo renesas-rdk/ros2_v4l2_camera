@@ -17,7 +17,8 @@
 #include <cstdint>
 #include <string>
 
-namespace v4l2_camera {
+namespace v4l2_camera
+{
 
 /**
  * @brief Identifies image encoding type --
@@ -25,9 +26,9 @@ namespace v4l2_camera {
 */
 enum class ImageEncodingType
 {
-    unknown,
-    raw,
-    compressed
+  unknown,
+  raw,
+  compressed
 };
 
 /**
@@ -50,4 +51,4 @@ std::string imageEncodingString(std::uint32_t pixel_format);
 */
 ImageEncodingType imageEncodingType(std::uint32_t pixel_format);
 
-} // namespace v4l2_camera
+}  // namespace v4l2_camera

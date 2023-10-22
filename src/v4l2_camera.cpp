@@ -51,7 +51,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
   }
 
-  compressed_image_pub_ = create_publisher<sensor_msgs::msg::CompressedImage>("image_compressed", rclcpp::SensorDataQoS {});
+  compressed_image_pub_ = create_publisher<sensor_msgs::msg::CompressedImage>(
+    "image_compressed", rclcpp::SensorDataQoS {});
 
   parameters_.declareStaticParameters();
   parameters_.declareOutputParameters();
@@ -96,61 +97,61 @@ void V4L2Camera::captureThreadFunc()
 
       sensor_msgs::msg::Image::UniquePtr img;
 
-      switch (imageEncodingType(captured_image.format.pixelFormat))
-      {
+      switch (imageEncodingType(captured_image.format.pixelFormat)) {
         case ImageEncodingType::raw:
-        {
-          img = std::make_unique<sensor_msgs::msg::Image>();
-          img->header = header;
-          img->encoding = image_encoding;
-          img->width = captured_image.format.width;
-          img->height = captured_image.format.height;
-          img->step = captured_image.format.bytesPerLine;
-          img->is_bigendian = std::endian::native == std::endian::big;
-          img->data = std::move(captured_image.data);
-
-          if (image_encoding != output_encoding_) {
-            RCLCPP_WARN_STREAM_ONCE(
-              get_logger(),
-              "Image encoding not the same as requested output, "
-              "performing possibly slow conversion: " <<
-              image_encoding << " => " << output_encoding_);
-            img = convert(*img);
-          }
-
-          break;
-        }
-        case ImageEncodingType::compressed:
-        {
-          auto compressed_img = std::make_unique<sensor_msgs::msg::CompressedImage>();
-          compressed_img->header = header;
-          compressed_img->format = image_encoding;
-          compressed_img->data = std::move(captured_image.data);
-
-          // decompress into raw image
-          // if (pub_image->get_subscription_count())
           {
             img = std::make_unique<sensor_msgs::msg::Image>();
-            cv_bridge::toCvCopy(*compressed_img, output_encoding_)->toImageMsg(*img);
-            RCLCPP_INFO_STREAM_ONCE(get_logger(),
-              "Decompressing " << image_encoding << " => " << output_encoding_);
+            img->header = header;
+            img->encoding = image_encoding;
+            img->width = captured_image.format.width;
+            img->height = captured_image.format.height;
+            img->step = captured_image.format.bytesPerLine;
+            img->is_bigendian = std::endian::native == std::endian::big;
+            img->data = std::move(captured_image.data);
+
+            if (image_encoding != output_encoding_) {
+              RCLCPP_WARN_STREAM_ONCE(
+                get_logger(),
+                "Image encoding not the same as requested output, "
+                "performing possibly slow conversion: " <<
+                  image_encoding << " => " << output_encoding_);
+              img = convert(*img);
+            }
+
+            break;
           }
+        case ImageEncodingType::compressed:
+          {
+            auto compressed_img = std::make_unique<sensor_msgs::msg::CompressedImage>();
+            compressed_img->header = header;
+            compressed_img->format = image_encoding;
+            compressed_img->data = std::move(captured_image.data);
 
-          compressed_image_pub_->publish(std::move(compressed_img));
+            // decompress into raw image
+            // if (pub_image->get_subscription_count())
+            {
+              img = std::make_unique<sensor_msgs::msg::Image>();
+              cv_bridge::toCvCopy(*compressed_img, output_encoding_)->toImageMsg(*img);
+              RCLCPP_INFO_STREAM_ONCE(
+                get_logger(),
+                "Decompressing " << image_encoding << " => " << output_encoding_);
+            }
 
-          break;
-        }
+            compressed_image_pub_->publish(std::move(compressed_img));
+
+            break;
+          }
         default:
-        {
-          RCLCPP_ERROR_STREAM_ONCE(get_logger(),
-            "Can't get image encoding type for " <<
-            FourCC::toString(captured_image.format.pixelFormat));
-          break;
-        }
+          {
+            RCLCPP_ERROR_STREAM_ONCE(
+              get_logger(),
+              "Can't get image encoding type for " <<
+                FourCC::toString(captured_image.format.pixelFormat));
+            break;
+          }
       }
 
-      if (img)
-      {
+      if (img) {
         auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
         if (!checkCameraInfo(*img, *ci)) {
           *ci = sensor_msgs::msg::CameraInfo{};
@@ -169,10 +170,10 @@ void V4L2Camera::captureThreadFunc()
           camera_transport_pub_.publish(*img, *ci);
         }
       }
-    }
-    catch (std::runtime_error const& e) {
+    } catch (std::runtime_error const & e) {
       // Failed capturing image, assume it is temporarily and continue a bit later
-      RCLCPP_ERROR_STREAM_THROTTLE(get_logger(), *get_clock(), 1000, "Image capture error: " << e.what());
+      RCLCPP_ERROR_STREAM_THROTTLE(
+        get_logger(), *get_clock(), 1000, "Image capture error: " << e.what());
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
@@ -242,8 +243,7 @@ void V4L2Camera::applyParameters()
 bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
 {
   auto name = param.get_name();
-  try
-  {
+  try {
     if (parameters_.isControlParameter(param)) {
       auto control_id = parameters_.getControlId(param);
       auto control = camera_->queryControl(control_id);
@@ -298,9 +298,7 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
         return false;
       }
     }
-  }
-  catch (std::runtime_error const& e)
-  {
+  } catch (std::runtime_error const & e) {
     RCLCPP_ERROR_STREAM(get_logger(), e.what());
     return false;
   }
@@ -310,8 +308,9 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
 
 void V4L2Camera::requestPixelFormat(std::string const & fourcc)
 {
-  if (fourcc.size() != 4)
+  if (fourcc.size() != 4) {
     throw std::invalid_argument {"Invalid pixel format size: must be a 4 character code (FOURCC)."};
+  }
 
   auto code = v4l2_fourcc(fourcc[0], fourcc[1], fourcc[2], fourcc[3]);
 

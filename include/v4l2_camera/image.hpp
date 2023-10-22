@@ -19,15 +19,16 @@
 
 #include <v4l2_camera/pixel_format.hpp>
 
-namespace v4l2_camera {
+namespace v4l2_camera
+{
 
 /**
  * @brief Image format and data, raw or compressed.
 */
 struct Image
 {
-    PixelFormat format;
-    std::vector<std::uint8_t> data;
+  PixelFormat format;
+  std::vector<std::uint8_t> data;
 };
 
-}
+}  // namespace v4l2_camera
