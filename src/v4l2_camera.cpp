@@ -170,8 +170,9 @@ void V4L2Camera::captureThreadFunc()
         }
       }
     }
-    catch (std::system_error const&) {
+    catch (std::runtime_error const& e) {
       // Failed capturing image, assume it is temporarily and continue a bit later
+      RCLCPP_ERROR_STREAM_THROTTLE(get_logger(), *get_clock(), 1000, "Image capture error: " << e.what());
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
   }
