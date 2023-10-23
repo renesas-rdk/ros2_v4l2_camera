@@ -65,6 +65,7 @@ public:
   auto const & getImageSizes() const {return image_sizes_;}
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   void requestDataFormat(PixelFormat const & format);
+  void setCrop(int left, int top, int width, int height);
 
   std::string getCameraName();
 

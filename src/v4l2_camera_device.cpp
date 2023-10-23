@@ -54,28 +54,29 @@ void V4l2CameraDevice::open()
   auto canRead = capabilities_.capabilities & V4L2_CAP_READWRITE;
   auto canStream = capabilities_.capabilities & V4L2_CAP_STREAMING;
 
-  RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
-    "Driver: %s", capabilities_.driver);
-  RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
-    "Version: %s", std::to_string(capabilities_.version).c_str());
-  RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
-    "Device: %s", capabilities_.card);
-  RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
-    "Location: %s", capabilities_.bus_info);
+  auto logger = rclcpp::get_logger("v4l2_camera");
+  RCLCPP_INFO(logger, "Driver: %s", capabilities_.driver);
+  RCLCPP_INFO(logger, "Version: %s", std::to_string(capabilities_.version).c_str());
+  RCLCPP_INFO(logger, "Device: %s", capabilities_.card);
+  RCLCPP_INFO(logger, "Location: %s", capabilities_.bus_info);
+  RCLCPP_INFO(logger, "Capabilities:");
+  RCLCPP_INFO(logger, "  Read/write: %s", (canRead ? "YES" : "NO"));
+  RCLCPP_INFO(logger, "  Streaming: %s", (canStream ? "YES" : "NO"));
 
-  RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
-    "Capabilities:");
-  RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
-    "  Read/write: %s", (canRead ? "YES" : "NO"));
-  RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
-    "  Streaming: %s", (canStream ? "YES" : "NO"));
+  v4l2_cropcap cropcap;
+  cropcap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  if (ioctl(fd_, VIDIOC_CROPCAP, &cropcap) == 0)
+  {
+    RCLCPP_INFO_STREAM(logger, "Cropping capabilities:");
+    RCLCPP_INFO_STREAM(logger, "  Bounds (left, top, width, height): " <<
+      cropcap.bounds.left << ", " << cropcap.bounds.top << ", "
+      << cropcap.bounds.width << ", " << cropcap.bounds.height);
+    RCLCPP_INFO_STREAM(logger, "  Default rectangle (left, top, width, height): " <<
+      cropcap.defrect.left << ", " << cropcap.defrect.top << ", "
+      << cropcap.defrect.width << ", " << cropcap.defrect.height);
+    RCLCPP_INFO_STREAM(logger, "  Pixel aspect: " <<
+      cropcap.pixelaspect.numerator << "/" << cropcap.pixelaspect.denominator);
+  }
 
   // Get current data (pixel) format
   auto formatReq = v4l2_format{};
@@ -84,7 +85,7 @@ void V4l2CameraDevice::open()
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
 
   RCLCPP_INFO(
-    rclcpp::get_logger("v4l2_camera"),
+    logger,
     "Current pixel format: %s @ %sx%s", FourCC::toString(cur_data_format_.pixelFormat).c_str(),
     std::to_string(cur_data_format_.width).c_str(),
     std::to_string(cur_data_format_.height).c_str());
@@ -94,24 +95,24 @@ void V4l2CameraDevice::open()
   listImageSizes();
   listControls();
 
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available pixel formats: ");
+  RCLCPP_INFO(logger, "Available pixel formats: ");
   for (auto const & format : image_formats_) {
     RCLCPP_INFO(
-      rclcpp::get_logger("v4l2_camera"),
+      logger,
       "  %s - %s", FourCC::toString(format.pixelFormat).c_str(), format.description.c_str());
   }
 
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Available controls: ");
+  RCLCPP_INFO(logger, "Available controls: ");
   for (auto const & control : controls_) {
     try {
       RCLCPP_INFO_STREAM(
-        rclcpp::get_logger("v4l2_camera"),
+        logger,
         "  " << control.name << " (" <<
           static_cast<unsigned>(control.type) << ") = " <<
           getControlValue(control.id) <<
           (control.inactive ? " [inactive]" : ""));
     } catch (std::runtime_error const & e) {
-      RCLCPP_ERROR_STREAM(rclcpp::get_logger("v4l2_camera"), e.what());
+      RCLCPP_ERROR_STREAM(logger, e.what());
     }
   }
 }
@@ -256,6 +257,29 @@ void V4l2CameraDevice::requestDataFormat(const PixelFormat & format)
 
   RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Success");
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
+}
+
+void V4l2CameraDevice::setCrop(int left, int top, int width, int height)
+{
+  v4l2_selection sel {};
+  sel.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  sel.target = V4L2_SEL_TGT_CROP;
+  sel.r.left = left;
+  sel.r.top = top;
+  sel.r.width = width;
+  sel.r.height = height;
+
+  if (-1 == ioctl(fd_, VIDIOC_S_SELECTION, &sel))
+  {
+    RCLCPP_ERROR_STREAM(rclcpp::get_logger("v4l2_camera"), "errno=" << errno);
+    throw std::system_error {errno, std::system_category(), "ioctl(VIDIOC_S_CROP) failed"};
+  }
+  else
+  {
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("v4l2_camera"), "ioctl(VIDIOC_S_CROP) succeeded");
+    RCLCPP_INFO_STREAM(rclcpp::get_logger("v4l2_camera"), "sel.r: " <<
+      sel.r.left << ", " << sel.r.top << ", " << sel.r.width << ", " << sel.r.height);
+  }
 }
 
 void V4l2CameraDevice::listImageFormats()
