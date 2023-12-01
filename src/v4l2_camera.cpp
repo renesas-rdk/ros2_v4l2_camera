@@ -14,7 +14,7 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
-#include <cv_bridge/cv_bridge.h>
+#include <cv_bridge/cv_bridge.hpp>
 
 #include <bit>
 #include <algorithm>
