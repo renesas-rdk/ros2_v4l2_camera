@@ -37,6 +37,7 @@ static std::unordered_map<std::uint32_t, EncodingInfo> const pixel_format_map =
   {V4L2_PIX_FMT_YUYV,
     {sensor_msgs::image_encodings::YUV422_YUY2, ImageEncodingType::raw}},
   {V4L2_PIX_FMT_UYVY, {sensor_msgs::image_encodings::YUV422, ImageEncodingType::raw}},
+  {V4L2_PIX_FMT_YUV420, {sensor_msgs::image_encodings::NV21, ImageEncodingType::raw}},
   {V4L2_PIX_FMT_GREY, {sensor_msgs::image_encodings::MONO8, ImageEncodingType::raw}},
   {V4L2_PIX_FMT_BGR24, {sensor_msgs::image_encodings::BGR8, ImageEncodingType::raw}},
   {V4L2_PIX_FMT_RGB24, {sensor_msgs::image_encodings::RGB8, ImageEncodingType::raw}},
