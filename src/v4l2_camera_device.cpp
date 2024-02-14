@@ -211,6 +211,11 @@ Image::UniquePtr V4l2CameraDevice::capture()
   auto const & buffer = buffers_[buf.index];
   img->data.assign(buffer.start, buffer.start + cur_data_format_.imageByteSize);
 
+  auto timestamp = rclcpp::Time{buf.timestamp.tv_sec * 1000000000 +
+    buf.timestamp.tv_usec * 1000};
+
+  auto timestamp_flags = buf.flags & V4L2_BUF_FLAG_TIMESTAMP_MASK;
+
   // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
     RCLCPP_ERROR(
@@ -219,6 +224,22 @@ Image::UniquePtr V4l2CameraDevice::capture()
       std::to_string(errno).c_str());
     return nullptr;
   }
+
+  if (timestamp_flags & V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC) {
+    RCLCPP_DEBUG(
+      rclcpp::get_logger("v4l2_camera"), "Monotonic time: %ld",
+      timestamp.nanoseconds());
+    timestamp = monotonic_to_realtime(timestamp);
+    RCLCPP_DEBUG(
+      rclcpp::get_logger("v4l2_camera"), "Realtime time: %ld",
+      timestamp.nanoseconds());
+  } else {
+    RCLCPP_WARN_ONCE(
+      rclcpp::get_logger("v4l2_camera"),
+      "Unknown timestamp type! Assuming realtime.");
+  }
+
+  img->header.stamp = timestamp;
 
   // Fill in remaining image information
   img->width = cur_data_format_.width;
@@ -504,4 +525,23 @@ bool V4l2CameraDevice::initMemoryMapping()
   }
 
   return true;
+}
+
+std::once_flag got_monotic_realtime_diff;
+std::chrono::nanoseconds monotonic_realtime_diff;
+
+rclcpp::Time
+V4l2CameraDevice::monotonic_to_realtime(rclcpp::Time const & timestamp) const
+{
+  std::call_once(
+    got_monotic_realtime_diff, []() {
+      auto realtime_now = std::chrono::system_clock::now();
+      auto monotonic_now = std::chrono::steady_clock::now();
+
+      monotonic_realtime_diff =
+      realtime_now.time_since_epoch() - monotonic_now.time_since_epoch();
+    });
+
+  return rclcpp::Time{timestamp.nanoseconds() +
+    monotonic_realtime_diff.count()};
 }
