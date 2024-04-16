@@ -32,6 +32,9 @@ struct EncodingInfo
 };
 
 
+// For V4L2 pixel formats, see https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/pixfmt.html
+// For ROS image encoding strings, see
+// https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/include/sensor_msgs/image_encodings.hpp
 static std::unordered_map<std::uint32_t, EncodingInfo> const pixel_format_map =
 {
   {V4L2_PIX_FMT_YUYV,
@@ -42,9 +45,6 @@ static std::unordered_map<std::uint32_t, EncodingInfo> const pixel_format_map =
   {V4L2_PIX_FMT_BGR24, {sensor_msgs::image_encodings::BGR8, ImageEncodingType::raw}},
   {V4L2_PIX_FMT_RGB24, {sensor_msgs::image_encodings::RGB8, ImageEncodingType::raw}},
   {V4L2_PIX_FMT_ABGR32, {sensor_msgs::image_encodings::BGRA8, ImageEncodingType::raw}},
-  {V4L2_PIX_FMT_XBGR32, {"bgrx8", ImageEncodingType::raw}},
-  {V4L2_PIX_FMT_ARGB32, {"argb8", ImageEncodingType::raw}},
-  {V4L2_PIX_FMT_XRGB32, {"xrgb8", ImageEncodingType::raw}},
   {V4L2_PIX_FMT_JPEG, {"jpeg", ImageEncodingType::compressed}},
   {V4L2_PIX_FMT_MJPEG, {"mjpg", ImageEncodingType::compressed}},
 };
@@ -54,9 +54,6 @@ static std::unordered_map<std::uint32_t, EncodingInfo> const pixel_format_map =
 
 std::string imageEncodingString(std::uint32_t pixel_format)
 {
-  // For V4L2 pixel formats, see https://www.kernel.org/doc/html/v4.19/media/uapi/v4l/pixfmt-packed-rgb.html
-  // For ROS image encoding strings, see
-  // http://docs.ros.org/en/jade/api/sensor_msgs/html/namespacesensor__msgs_1_1image__encodings.html
   auto const it = pixel_format_map.find(pixel_format);
   return it != pixel_format_map.end() ? it->second.encodingString : std::string {};
 }
