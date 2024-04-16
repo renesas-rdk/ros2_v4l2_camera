@@ -33,9 +33,9 @@
 using v4l2_camera::V4l2CameraDevice;
 using sensor_msgs::msg::Image;
 
-// For V4L2 pixel formats, see https://www.kernel.org/doc/html/v4.19/media/uapi/v4l/pixfmt-packed-rgb.html
+// For V4L2 pixel formats, see https://www.kernel.org/doc/html/latest/userspace-api/media/v4l/pixfmt.html
 // For ROS image encoding strings, see
-// http://docs.ros.org/en/jade/api/sensor_msgs/html/namespacesensor__msgs_1_1image__encodings.html
+// https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/include/sensor_msgs/image_encodings.hpp
 std::unordered_map<std::uint32_t, std::string> const V4l2CameraDevice::pixel_format_map_ =
 {
   {V4L2_PIX_FMT_YUYV, sensor_msgs::image_encodings::YUV422_YUY2},
