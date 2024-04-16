@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 #include <unordered_map>
+#include <cstdint>
 
 #include <sensor_msgs/msg/image.hpp>
 
