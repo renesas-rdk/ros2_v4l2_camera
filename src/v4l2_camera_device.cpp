@@ -43,10 +43,7 @@ std::unordered_map<std::uint32_t, std::string> const V4l2CameraDevice::pixel_for
   {V4L2_PIX_FMT_GREY, sensor_msgs::image_encodings::MONO8},
   {V4L2_PIX_FMT_BGR24, sensor_msgs::image_encodings::BGR8},
   {V4L2_PIX_FMT_RGB24, sensor_msgs::image_encodings::RGB8},
-  {V4L2_PIX_FMT_ABGR32, sensor_msgs::image_encodings::BGRA8},
-  {V4L2_PIX_FMT_XBGR32, "bgrx8"},
-  {V4L2_PIX_FMT_ARGB32, "argb8"},
-  {V4L2_PIX_FMT_XRGB32, "xrgb8"},
+  {V4L2_PIX_FMT_ABGR32, sensor_msgs::image_encodings::BGRA8}
 };
 
 V4l2CameraDevice::V4l2CameraDevice(std::string device)
