@@ -20,11 +20,10 @@
 #include <utility>
 #include <vector>
 
-#include <sensor_msgs/msg/image.hpp>
-
-#include "v4l2_camera/control.hpp"
-#include "v4l2_camera/image_format.hpp"
-#include "v4l2_camera/pixel_format.hpp"
+#include <v4l2_camera/control.hpp>
+#include <v4l2_camera/image_format.hpp>
+#include <v4l2_camera/pixel_format.hpp>
+#include <v4l2_camera/image.hpp>
 
 namespace v4l2_camera
 {
@@ -36,9 +35,9 @@ class V4l2CameraDevice
 public:
   explicit V4l2CameraDevice(std::string device);
 
-  bool open();
-  bool start();
-  bool stop();
+  void open();
+  void start();
+  void stop();
 
   // Query properties and current state of a control
   Control queryControl(uint32_t id, bool silent = false);
@@ -50,7 +49,7 @@ public:
   int32_t getControlValue(uint32_t id) const;
 
   // Attempt to set current control value
-  bool setControlValue(uint32_t id, int32_t value);
+  void setControlValue(uint32_t id, int32_t value);
 
   // Types used to describe available image sizes
   enum class ImageSizeType
@@ -65,11 +64,12 @@ public:
   auto const & getImageFormats() const {return image_formats_;}
   auto const & getImageSizes() const {return image_sizes_;}
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
-  bool requestDataFormat(PixelFormat const & format);
+  void requestDataFormat(PixelFormat const & format);
+  void setCrop(int left, int top, int width, int height);
 
   std::string getCameraName();
 
-  sensor_msgs::msg::Image::UniquePtr capture();
+  Image capture();
 
 private:
   /// Image buffer
@@ -106,7 +106,7 @@ private:
   void listControls();
 
   // Set up memory mapping to buffers
-  bool initMemoryMapping();
+  void initMemoryMapping();
 };
 
 }  // namespace v4l2_camera

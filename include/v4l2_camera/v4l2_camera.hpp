@@ -23,6 +23,7 @@
 
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/image_transport.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 #include <rcl_interfaces/msg/parameter.hpp>
 #include <rclcpp/rclcpp.hpp>
 
@@ -51,6 +52,9 @@ private:
   // Publisher used for inter process comm
   image_transport::CameraPublisher camera_transport_pub_;
 
+  // Compressed image publisher
+  rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_image_pub_;
+
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 
   std::thread capture_thread_;
@@ -64,14 +68,16 @@ private:
   void applyParameters();
   bool handleParameter(rclcpp::Parameter const & param);
 
-  bool requestPixelFormat(std::string const & fourcc);
-  bool requestImageSize(std::vector<int64_t> const & size);
+  void requestPixelFormat(std::string const & fourcc);
+  void requestImageSize(std::vector<int64_t> const & size);
 
   sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
 
   bool checkCameraInfo(
     sensor_msgs::msg::Image const & img,
     sensor_msgs::msg::CameraInfo const & ci);
+
+  void captureThreadFunc();
 };
 
 }  // namespace v4l2_camera
