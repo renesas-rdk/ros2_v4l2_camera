@@ -40,12 +40,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Prepare publisher
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
-  if (options.use_intra_process_comms()) {
-    image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
-    info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", 10);
-  } else {
-    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
-  }
+  camera_transport_pub_ =
+    image_transport::create_camera_publisher(this, "image_raw");
 
   parameters_.declareStaticParameters();
   parameters_.declareOutputParameters();
@@ -108,13 +104,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
         ci->header.stamp = stamp;
         ci->header.frame_id = camera_frame_id_;
 
-        if (get_node_options().use_intra_process_comms()) {
-          RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
-          image_pub_->publish(std::move(img));
-          info_pub_->publish(std::move(ci));
-        } else {
-          camera_transport_pub_.publish(*img, *ci);
-        }
+        RCLCPP_DEBUG_STREAM(
+          get_logger(),
+          "Image message address [PUBLISH]:\t" << img.get());
+        camera_transport_pub_.publish(std::move(img), std::move(ci));
       }
     }
   };
