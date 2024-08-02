@@ -44,11 +44,6 @@ private:
 
   std::shared_ptr<V4l2CameraDevice> camera_;
 
-  // Publisher used for intra process comm
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr image_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr info_pub_;
-
-  // Publisher used for inter process comm
   image_transport::CameraPublisher camera_transport_pub_;
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
