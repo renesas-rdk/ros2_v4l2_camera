@@ -66,6 +66,7 @@ public:
   auto const & getImageSizes() const {return image_sizes_;}
   auto const & getCurrentDataFormat() const {return cur_data_format_;}
   bool requestDataFormat(PixelFormat const & format);
+  bool requestFPS(const int fps);
 
   std::string getCameraName();
 

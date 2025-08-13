@@ -75,6 +75,7 @@ public:
   std::string getOutputEncoding() const {return getValue<std::string>("output_encoding");}
 
   std::string getPixelFormat() const {return getValue<std::string>("pixel_format");}
+  int getFPS() const {return getValue<int>("fps");}
   std::vector<int64_t> getImageSize() const {return getValue<std::vector<int64_t>>("image_size");}
 
   std::vector<rclcpp::Parameter> getControlParameters() const

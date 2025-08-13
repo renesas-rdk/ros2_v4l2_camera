@@ -156,6 +156,10 @@ publishes images as `sensor_msgs/Image` messages.
 
     Width and height of the image.
 
+* `fps` - `integer`, default: `30`
+
+    Camera FPS.
+
 * Camera Control Parameters
 
     Camera controls, such as brightness, contrast, white balance, etc,

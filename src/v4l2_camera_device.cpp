@@ -304,9 +304,43 @@ bool V4l2CameraDevice::requestDataFormat(const PixelFormat & format)
       std::to_string(errno).c_str());
     return false;
   }
-
-  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Success");
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
+
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Actual format: %sx%s %s",
+    std::to_string(cur_data_format_.width).c_str(),
+    std::to_string(cur_data_format_.height).c_str(),
+    FourCC::toString(cur_data_format_.pixelFormat).c_str());
+  return true;
+}
+
+bool V4l2CameraDevice::requestFPS(const int fps) {
+  struct v4l2_streamparm parm;
+  parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Requesting %d FPS",
+    fps);
+
+  // Set the desired frame rate
+  parm.parm.capture.timeperframe.numerator = 1;
+  parm.parm.capture.timeperframe.denominator = fps;
+
+  if (ioctl(fd_, VIDIOC_S_PARM, &parm) == -1) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"),
+      "Failed setting stream parameters: %s (%s)",
+      strerror(errno), std::to_string(errno).c_str());
+    return false;
+  }
+
+  if (ioctl(fd_, VIDIOC_G_PARM, &parm) == -1) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"),
+      "Failed getting stream parameters: %s (%s)",
+      strerror(errno), std::to_string(errno).c_str());
+    return false;
+  }
+
+  RCLCPP_INFO(rclcpp::get_logger("v4l2_camera"), "Actual FPS: %d", parm.parm.capture.timeperframe.denominator);
   return true;
 }
 
