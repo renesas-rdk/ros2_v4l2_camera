@@ -149,6 +149,9 @@ void V4L2Camera::applyParameters()
   auto pixel_format = parameters_.getPixelFormat();
   requestPixelFormat(pixel_format);
 
+  auto fps = parameters_.getFPS();
+  camera_->requestFPS(fps);
+
   // Image size
   auto image_size = parameters_.getImageSize();
   requestImageSize(image_size);

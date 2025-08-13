@@ -111,6 +111,10 @@ void Parameters::declareFormatParameters(V4l2CameraDevice const & device)
   declareParameter<std::vector<int64_t>>(
     "image_size", {640, 480}, "Image width & height",
     image_sizes_constraints.str());
+
+  declareParameter<int64_t>(
+    "fps", 30, "Frames per second to capture",
+    "Must be supported by the camera and the requested pixel format and image size");
 }
 
 void Parameters::declareControlParameters(V4l2CameraDevice const & device)
