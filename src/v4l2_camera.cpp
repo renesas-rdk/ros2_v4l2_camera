@@ -44,7 +44,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     image_pub_ = create_publisher<sensor_msgs::msg::Image>("image_raw", 10);
     info_pub_ = create_publisher<sensor_msgs::msg::CameraInfo>("camera_info", 10);
   } else {
-    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw");
+    camera_transport_pub_ = image_transport::create_camera_publisher(this, "image_raw", 10);
   }
 
   parameters_.declareStaticParameters();
