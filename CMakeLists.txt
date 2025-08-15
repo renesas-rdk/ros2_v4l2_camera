@@ -35,12 +35,13 @@ target_include_directories(v4l2_camera PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
-ament_target_dependencies(v4l2_camera
-  "rclcpp"
-  "rclcpp_components"
-  "camera_info_manager"
-  "cv_bridge"
-  "image_transport")
+target_link_libraries(v4l2_camera PUBLIC
+  camera_info_manager::camera_info_manager
+  cv_bridge::cv_bridge
+  image_transport::image_transport
+  rclcpp::rclcpp
+  rclcpp_components::component
+  rclcpp_components::component_manager)
 
 # Causes the visibility macros to use dllexport rather than dllimport,
 # which is appropriate when building the dll but not consuming it.
