@@ -60,7 +60,7 @@ driver instead of the new Unicam driver, by [changing settings in the
 `/boot/config.txt`
 file](https://www.raspberrypi.com/documentation/computers/config_txt.html):
 * Set
-  [`camera_autodetect=0`](https://www.raspberrypi.com/documentation/computers/config_txt.html#camera_auto_detect)
+  [`camera_auto_detect=0`](https://www.raspberrypi.com/documentation/computers/config_txt.html#camera_auto_detect)
   to prevent hardware overlays that use the Unicam driver to be
   loaded.
 * Set
