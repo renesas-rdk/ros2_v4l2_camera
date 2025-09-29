@@ -9,7 +9,8 @@ A ROS 2 camera driver using Video4Linux2 (V4L2).
 * Uses `cv_bridge` to convert raw frames to ROS 2 messages, so
   supports a wide range of encoding conversions.
 * Supports `image_transport` to enable compression.
-* Supports composing the camera node and using ROS 2 intra-process
+* Allows QoS settings to be reconfigured.
+* Supports composing the camera node and using ROS 2 intra-process.
   commmunication with zero-copy messaging.
 
 ## Supported Cameras
@@ -166,6 +167,20 @@ publishes images as `sensor_msgs/Image` messages.
     commas removed, and spaces replaced by underscores. So
     `Brightness` becomes `brightness`, and `White Balance, Automatic`
     becomes `white_balance_automatic`.
+
+* QoS Parameters
+
+    The driver uses `QosOverridingOptions` to allow configuration of
+    the default QoS policies. For instance, use the following to
+    configure best effort reliability:
+
+        ros2 run v4l2_camera v4l2_camera_node --ros-args \
+          -p qos_overrides./image_raw.publisher.reliability:=best_effort
+
+    The same applies to any other topics provided by `image_transport`.
+
+    Note that these parameters can only be set at startup; ROS 2's QoS
+    overriding declares these parameters as read-only during run time.
 
 ## Compressed Transport
 
