@@ -40,8 +40,11 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   // Prepare publisher
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
-  camera_transport_pub_ =
-    image_transport::create_camera_publisher(this, "image_raw");
+  auto publisher_options = rclcpp::PublisherOptions{};
+  publisher_options.qos_overriding_options =
+    rclcpp::QosOverridingOptions::with_default_policies();
+  camera_transport_pub_ = image_transport::create_camera_publisher(
+    this, "image_raw", rmw_qos_profile_default, publisher_options);
 
   parameters_.declareStaticParameters();
   parameters_.declareOutputParameters();
