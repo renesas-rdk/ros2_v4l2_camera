@@ -2,6 +2,14 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Make the QoS policies of the publisher configurable
+* Use image_transport to publish using unique_ptr
+* Update CMakeLists.txt to latest conventions
+* Add new QoS parameter to image transport publisher
+* Contributors: Alejandro Hernandez Cordero, Błażej Sowa, Sander G. van Dijk
+
 0.7.1 (2024-04-30)
 ------------------
 * Fix deprecated cv_bridge header
