@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.8.0 (2025-10-12)
+------------------
 * Make the QoS policies of the publisher configurable
 * Use image_transport to publish using unique_ptr
 * Update CMakeLists.txt to latest conventions
