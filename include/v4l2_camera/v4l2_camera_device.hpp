@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include <rclcpp/time.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
 #include "v4l2_camera/control.hpp"
@@ -107,6 +108,8 @@ private:
 
   // Set up memory mapping to buffers
   bool initMemoryMapping();
+
+  rclcpp::Time monotonic_to_realtime(rclcpp::Time const & timestamp) const;
 };
 
 }  // namespace v4l2_camera
