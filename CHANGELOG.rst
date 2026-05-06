@@ -2,6 +2,12 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming (unreleased)
+------------------------
+* Maintain RDK ROS 2 Jazzy fork branch.
+* Adapt `image_transport::create_camera_publisher` call for the target
+  image transport API while keeping QoS override support.
+
 0.8.1 (2026-07-20)
 ------------------
 * Update CameraInfoManager creation to use latest rolling signature

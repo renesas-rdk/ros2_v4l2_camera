@@ -5,6 +5,7 @@
   <version>0.8.1</version>
   <description>A ROS 2 camera driver using Video4Linux2</description>
   <maintainer email="sgvandijk@gmail.com">Sander G. van Dijk</maintainer>
+  <maintainer email="baoan.du.xj@renesas.com">Baoan Du</maintainer>
   <license>Apache License 2.0</license>
 
   <author>Sander G. van Dijk</author>

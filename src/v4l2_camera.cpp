@@ -11,6 +11,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
+// Modified by Renesas Electronics Corporation for RDK ROS 2 Jazzy integration.
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
@@ -46,7 +48,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   auto publisher_options = rclcpp::PublisherOptions{};
   publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   camera_transport_pub_ = image_transport::create_camera_publisher(
-    *this, "image_raw", rclcpp::SystemDefaultsQoS{}, publisher_options);
+    this, "image_raw", rclcpp::SystemDefaultsQoS{}.get_rmw_qos_profile(), publisher_options);
 
   // Time reference publisher
   camera_timeref_pub_ = create_publisher<sensor_msgs::msg::TimeReference>(

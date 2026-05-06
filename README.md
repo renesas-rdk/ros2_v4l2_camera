@@ -2,6 +2,19 @@
 
 A ROS 2 camera driver using Video4Linux2 (V4L2).
 
+## Fork maintenance
+
+This repository is a maintained fork of the upstream ROS 2 `v4l2_camera`
+project:
+
+<https://gitlab.com/boldhearts/ros2_v4l2_camera.git>
+
+The original project is licensed under the Apache License 2.0. This fork keeps
+the same license and preserves the upstream history, copyright notices, and
+license text. Local changes are maintained on `main` for RDK ROS 2 Jazzy
+integration and may be mirrored from the company-hosted GitLab repository to a
+public GitHub repository when ready.
+
 ## Features
 
 * Lists and exposes all user-settable controls of your camera as ROS 2
