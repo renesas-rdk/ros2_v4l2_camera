@@ -52,8 +52,13 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     return;
   }
 
-  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
-
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(
+    get_node_base_interface(), get_node_services_interface(), get_node_logging_interface(),
+    camera_->getCameraName(),
+    "",  // camera_info_url - loaded later in applyParameters()
+    rclcpp::SystemDefaultsQoS{},
+    ""  // namespace
+  );
   parameters_.declareDeviceParameters(*camera_);
 
   // Read parameters and set up callback
