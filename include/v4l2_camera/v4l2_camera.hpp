@@ -15,19 +15,15 @@
 #ifndef V4L2_CAMERA__V4L2_CAMERA_HPP_
 #define V4L2_CAMERA__V4L2_CAMERA_HPP_
 
-#include "v4l2_camera/v4l2_camera_device.hpp"
-
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <camera_info_manager/camera_info_manager.hpp>
-#include <image_transport/image_transport.hpp>
-#include <rcl_interfaces/msg/parameter.hpp>
-#include <rclcpp/rclcpp.hpp>
-
-#include "v4l2_camera/visibility_control.h"
+#include "camera_info_manager/camera_info_manager.hpp"
+#include "image_transport/camera_publisher.hpp"
 #include "v4l2_camera/parameters.hpp"
+#include "v4l2_camera/v4l2_camera_device.hpp"
+#include "v4l2_camera/visibility_control.h"
 
 namespace v4l2_camera
 {
@@ -65,8 +61,7 @@ private:
   sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
 
   bool checkCameraInfo(
-    sensor_msgs::msg::Image const & img,
-    sensor_msgs::msg::CameraInfo const & ci);
+    sensor_msgs::msg::Image const & img, sensor_msgs::msg::CameraInfo const & ci);
 };
 
 }  // namespace v4l2_camera

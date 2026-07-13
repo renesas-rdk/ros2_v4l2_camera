@@ -20,8 +20,7 @@
 #include <utility>
 #include <vector>
 
-#include <sensor_msgs/msg/image.hpp>
-
+#include "sensor_msgs/msg/image.hpp"
 #include "v4l2_camera/control.hpp"
 #include "v4l2_camera/image_format.hpp"
 #include "v4l2_camera/pixel_format.hpp"
@@ -44,7 +43,7 @@ public:
   Control queryControl(uint32_t id, bool silent = false);
 
   // Get all pre-queried controls
-  auto const & getControls() const {return controls_;}
+  auto const & getControls() const { return controls_; }
 
   // Get current control value
   int32_t getControlValue(uint32_t id) const;
@@ -62,9 +61,9 @@ public:
   using ImageSizesVector = std::vector<std::pair<uint16_t, uint16_t>>;
   using ImageSizesDescription = std::pair<ImageSizeType, ImageSizesVector>;
 
-  auto const & getImageFormats() const {return image_formats_;}
-  auto const & getImageSizes() const {return image_sizes_;}
-  auto const & getCurrentDataFormat() const {return cur_data_format_;}
+  auto const & getImageFormats() const { return image_formats_; }
+  auto const & getImageSizes() const { return image_sizes_; }
+  auto const & getCurrentDataFormat() const { return cur_data_format_; }
   bool requestDataFormat(PixelFormat const & format);
 
   std::string getCameraName();

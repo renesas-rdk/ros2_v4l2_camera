@@ -16,6 +16,7 @@
 #define V4L2_CAMERA__IMAGE_FORMAT_HPP_
 
 #include <linux/videodev2.h>
+
 #include <string>
 
 namespace v4l2_camera
@@ -33,7 +34,8 @@ struct ImageFormat
     flags(fd.flags),
     description((const char *)fd.description),
     pixelFormat(fd.pixelformat)
-  {}
+  {
+  }
 
   /// Number of the format in the enumeration, set by the application
   unsigned index;

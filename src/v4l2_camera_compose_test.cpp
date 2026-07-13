@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "v4l2_camera/v4l2_camera.hpp"
-
 #include <memory>
+
+#include "v4l2_camera/v4l2_camera.hpp"
 
 class ComposeTest : public rclcpp::Node
 {
 public:
-  explicit ComposeTest(rclcpp::NodeOptions const & options)
-  : rclcpp::Node{"compose_test", options}
+  explicit ComposeTest(rclcpp::NodeOptions const & options) : rclcpp::Node{"compose_test", options}
   {
-    img_sub_ =
-      create_subscription<sensor_msgs::msg::Image>(
-      "/image_raw",
-      10,
-      [this](sensor_msgs::msg::Image::UniquePtr img) {
+    img_sub_ = create_subscription<sensor_msgs::msg::Image>(
+      "/image_raw", 10, [this](sensor_msgs::msg::Image::UniquePtr img) {
         std::stringstream ss;
         ss << "Image message address [RECEIVE]:\t" << img.get();
         RCLCPP_DEBUG(get_logger(), "%s", ss.str().c_str());
