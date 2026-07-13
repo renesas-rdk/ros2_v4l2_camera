@@ -16,8 +16,9 @@
 #define V4L2_CAMERA__CONTROL_HPP_
 
 #include <linux/videodev2.h>
-#include <string>
+
 #include <map>
+#include <string>
 
 namespace v4l2_camera
 {
@@ -25,14 +26,14 @@ namespace v4l2_camera
 /// Type of camera control
 enum class ControlType : unsigned
 {
-  INT        = 1,
-  BOOL       = 2,
-  MENU       = 3,
-  BUTTON     = 4,
-  INT64      = 5,
+  INT = 1,
+  BOOL = 2,
+  MENU = 3,
+  BUTTON = 4,
+  INT64 = 5,
   CTRL_CLASS = 6,
-  STRING     = 7,
-  BITMASK    = 8
+  STRING = 7,
+  BITMASK = 8
 };
 
 struct Control

@@ -28,14 +28,13 @@ Parameters::Parameters(
 : logging_interface_{std::move(logging_interface)},
   parameters_interface_{std::move(parameters_interface)},
   topics_interface_{std::move(topics_interface)}
-{}
+{
+}
 
 void Parameters::declareStaticParameters()
 {
   declareParameter("video_device", "/dev/video0", "Path to video device", true);
-  declareParameter(
-    "camera_info_url", "", "The location for getting camera calibration data",
-    true);
+  declareParameter("camera_info_url", "", "The location for getting camera calibration data", true);
   declareParameter("camera_frame_id", "camera", "Frame id inserted in published image", true);
 }
 
@@ -58,9 +57,8 @@ void Parameters::declareFormatParameters(V4l2CameraDevice const & device)
   auto const & image_formats = device.getImageFormats();
   auto pixel_format_constraints = std::ostringstream{};
   for (auto const & format : image_formats) {
-    pixel_format_constraints <<
-      "\"" << FourCC::toString(format.pixelFormat) << "\"" <<
-      " (" << format.description << "), ";
+    pixel_format_constraints << "\"" << FourCC::toString(format.pixelFormat) << "\"" << " ("
+                             << format.description << "), ";
   }
   auto str = pixel_format_constraints.str();
   str = str.substr(0, str.size() - 2);
@@ -76,8 +74,9 @@ void Parameters::declareFormatParameters(V4l2CameraDevice const & device)
   image_sizes_constraints << "Available image sizes:";
 
   for (auto const & format : image_formats) {
-    image_sizes_constraints << "\n" << FourCC::toString(format.pixelFormat) << " (" <<
-      format.description << ")";
+    image_sizes_constraints << "\n"
+                            << FourCC::toString(format.pixelFormat) << " (" << format.description
+                            << ")";
 
     // See if image sizes are available for the given format
     auto iter = image_sizes.find(format.pixelFormat);
@@ -109,8 +108,7 @@ void Parameters::declareFormatParameters(V4l2CameraDevice const & device)
   }
 
   declareParameter<std::vector<int64_t>>(
-    "image_size", {640, 480}, "Image width & height",
-    image_sizes_constraints.str());
+    "image_size", {640, 480}, "Image width & height", image_sizes_constraints.str());
 }
 
 void Parameters::declareControlParameters(V4l2CameraDevice const & device)
@@ -119,51 +117,46 @@ void Parameters::declareControlParameters(V4l2CameraDevice const & device)
   // - makes all lower case
   // - removes ',', '(' and ')'
   // - replaces spaces with underscores
-  auto toParamName =
-    [](std::string name) {
-      std::transform(name.begin(), name.end(), name.begin(), ::tolower);
-      name.erase(std::remove(name.begin(), name.end(), ','), name.end());
-      name.erase(std::remove(name.begin(), name.end(), '('), name.end());
-      name.erase(std::remove(name.begin(), name.end(), ')'), name.end());
-      std::replace(name.begin(), name.end(), ' ', '_');
-      return name;
-    };
+  auto toParamName = [](std::string name) {
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+    name.erase(std::remove(name.begin(), name.end(), ','), name.end());
+    name.erase(std::remove(name.begin(), name.end(), '('), name.end());
+    name.erase(std::remove(name.begin(), name.end(), ')'), name.end());
+    std::replace(name.begin(), name.end(), ' ', '_');
+    return name;
+  };
 
   for (auto const & c : device.getControls()) {
     auto name = toParamName(c.name);
     auto descriptor = make_descriptor(c.name, "", false);
     switch (c.type) {
-      case ControlType::INT:
-        {
-          auto range = rcl_interfaces::msg::IntegerRange{};
-          range.from_value = c.minimum;
-          range.to_value = c.maximum;
-          descriptor.integer_range.push_back(range);
-          declareParameter<int64_t>(name, c.defaultValue, descriptor);
-          break;
+      case ControlType::INT: {
+        auto range = rcl_interfaces::msg::IntegerRange{};
+        range.from_value = c.minimum;
+        range.to_value = c.maximum;
+        descriptor.integer_range.push_back(range);
+        declareParameter<int64_t>(name, c.defaultValue, descriptor);
+        break;
+      }
+      case ControlType::BOOL: {
+        declareParameter<bool>(name, c.defaultValue != 0, descriptor);
+        break;
+      }
+      case ControlType::MENU: {
+        auto sstr = std::ostringstream{};
+        for (auto const & o : c.menuItems) {
+          sstr << o.first << " - " << o.second << ", ";
         }
-      case ControlType::BOOL:
-        {
-          declareParameter<bool>(name, c.defaultValue != 0, descriptor);
-          break;
-        }
-      case ControlType::MENU:
-        {
-          auto sstr = std::ostringstream{};
-          for (auto const & o : c.menuItems) {
-            sstr << o.first << " - " << o.second << ", ";
-          }
-          auto str = sstr.str();
-          descriptor.additional_constraints = str.substr(0, str.size() - 2);
-          declareParameter<int64_t>(name, c.defaultValue, descriptor);
-          break;
-        }
+        auto str = sstr.str();
+        descriptor.additional_constraints = str.substr(0, str.size() - 2);
+        declareParameter<int64_t>(name, c.defaultValue, descriptor);
+        break;
+      }
       default:
         RCLCPP_WARN(
           logging_interface_->get_logger(),
           "Control type not currently supported: %s, for control: %s",
-          std::to_string(unsigned(c.type)).c_str(),
-          c.name.c_str());
+          std::to_string(unsigned(c.type)).c_str(), c.name.c_str());
         continue;
     }
     control_name_to_id_[name] = c.id;

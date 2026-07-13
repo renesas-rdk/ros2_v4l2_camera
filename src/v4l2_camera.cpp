@@ -14,16 +14,13 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include <cv_bridge/cv_bridge.hpp>
-#include <sensor_msgs/image_encodings.hpp>
-
-#include "v4l2_camera/fourcc.hpp"
+#include "cv_bridge/cv_bridge.hpp"
+#include "image_transport/image_transport.hpp"
 #include "v4l2_camera/parameters.hpp"
 
 using namespace std::chrono_literals;
@@ -33,18 +30,17 @@ namespace v4l2_camera
 
 V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 : rclcpp::Node{"v4l2_camera", options},
-  parameters_{get_node_parameters_interface(), get_node_topics_interface(),
-    get_node_logging_interface()},
+  parameters_{
+    get_node_parameters_interface(), get_node_topics_interface(), get_node_logging_interface()},
   canceled_{false}
 {
   // Prepare publisher
   // This should happen before registering on_set_parameters_callback,
   // else transport plugins will fail to declare their parameters
   auto publisher_options = rclcpp::PublisherOptions{};
-  publisher_options.qos_overriding_options =
-    rclcpp::QosOverridingOptions::with_default_policies();
+  publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   camera_transport_pub_ = image_transport::create_camera_publisher(
-      *this, "image_raw", rclcpp::SystemDefaultsQoS{}, publisher_options);
+    *this, "image_raw", rclcpp::SystemDefaultsQoS{}, publisher_options);
 
   parameters_.declareStaticParameters();
   parameters_.declareOutputParameters();
@@ -56,17 +52,20 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     return;
   }
 
-  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(this, camera_->getCameraName());
-
+  cinfo_ = std::make_shared<camera_info_manager::CameraInfoManager>(
+    get_node_base_interface(), get_node_services_interface(), get_node_logging_interface(),
+    camera_->getCameraName(),
+    "",  // camera_info_url - loaded later in applyParameters()
+    rclcpp::SystemDefaultsQoS{},
+    ""  // namespace
+  );
   parameters_.declareDeviceParameters(*camera_);
 
   // Read parameters and set up callback
   applyParameters();
 
   parameters_.setParameterChangedCallback(
-    [this](rclcpp::Parameter parameter) {
-      handleParameter(parameter);
-    });
+    [this](rclcpp::Parameter parameter) { handleParameter(parameter); });
 
   // Start the camera
   if (!camera_->start()) {
@@ -74,44 +73,42 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   }
 
   // Start capture thread
-  capture_thread_ = std::thread{
-    [this]() -> void {
-      while (rclcpp::ok() && !canceled_.load()) {
-        RCLCPP_DEBUG(get_logger(), "Capture...");
-        auto img = camera_->capture();
-        if (img == nullptr) {
-          // Failed capturing image, assume it is temporarily and continue a bit later
-          std::this_thread::sleep_for(std::chrono::milliseconds(10));
-          continue;
-        }
-
-        auto stamp = now();
-        if (img->encoding != output_encoding_) {
-          RCLCPP_WARN_ONCE(
-            get_logger(),
-            "Image encoding not the same as requested output, performing possibly slow conversion: "
-            "%s => %s",
-            img->encoding.c_str(), output_encoding_.c_str());
-          img = convert(*img);
-        }
-        img->header.stamp = stamp;
-        img->header.frame_id = camera_frame_id_;
-
-        auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
-        if (!checkCameraInfo(*img, *ci)) {
-          *ci = sensor_msgs::msg::CameraInfo{};
-          ci->height = img->height;
-          ci->width = img->width;
-        }
-
-        ci->header.stamp = stamp;
-        ci->header.frame_id = camera_frame_id_;
-
-        RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
-        camera_transport_pub_.publish(std::move(img), std::move(ci));
+  capture_thread_ = std::thread{[this]() -> void {
+    while (rclcpp::ok() && !canceled_.load()) {
+      RCLCPP_DEBUG(get_logger(), "Capture...");
+      auto img = camera_->capture();
+      if (img == nullptr) {
+        // Failed capturing image, assume it is temporarily and continue a bit later
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        continue;
       }
+
+      auto stamp = now();
+      if (img->encoding != output_encoding_) {
+        RCLCPP_WARN_ONCE(
+          get_logger(),
+          "Image encoding not the same as requested output, performing possibly slow conversion: "
+          "%s => %s",
+          img->encoding.c_str(), output_encoding_.c_str());
+        img = convert(*img);
+      }
+      img->header.stamp = stamp;
+      img->header.frame_id = camera_frame_id_;
+
+      auto ci = std::make_unique<sensor_msgs::msg::CameraInfo>(cinfo_->getCameraInfo());
+      if (!checkCameraInfo(*img, *ci)) {
+        *ci = sensor_msgs::msg::CameraInfo{};
+        ci->height = img->height;
+        ci->width = img->width;
+      }
+
+      ci->header.stamp = stamp;
+      ci->header.frame_id = camera_frame_id_;
+
+      RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
+      camera_transport_pub_.publish(std::move(img), std::move(ci));
     }
-  };
+  }};
 }
 
 V4L2Camera::~V4L2Camera()
@@ -159,17 +156,20 @@ void V4L2Camera::applyParameters()
 
     switch (param.get_type()) {
       case rclcpp::ParameterType::PARAMETER_BOOL:
-        if (static_cast<bool>(camera_->getControlValue(control.id)) == param.as_bool()) {continue;}
+        if (static_cast<bool>(camera_->getControlValue(control.id)) == param.as_bool()) {
+          continue;
+        }
         camera_->setControlValue(control_id, param.as_bool());
         break;
       case rclcpp::ParameterType::PARAMETER_INTEGER:
-        if (camera_->getControlValue(control.id) == param.as_int()) {continue;}
+        if (camera_->getControlValue(control.id) == param.as_int()) {
+          continue;
+        }
         camera_->setControlValue(control_id, param.as_int());
         break;
       default:
         RCLCPP_WARN(
-          get_logger(),
-          "Control parameter type not currently supported: %d, for parameter: %s",
+          get_logger(), "Control parameter type not currently supported: %d, for parameter: %s",
           unsigned(param.get_type()), param.get_name().c_str());
     }
   }
@@ -189,23 +189,22 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
       case rclcpp::ParameterType::PARAMETER_BOOL:
         if (static_cast<bool>(camera_->getControlValue(control.id)) == param.as_bool()) {
           RCLCPP_DEBUG(
-            get_logger(), "Parameter %s already set at requested value: %d",
-            control.name.c_str(), param.as_bool());
+            get_logger(), "Parameter %s already set at requested value: %d", control.name.c_str(),
+            param.as_bool());
           return true;
         }
         return camera_->setControlValue(control_id, param.as_bool());
       case rclcpp::ParameterType::PARAMETER_INTEGER:
         if (camera_->getControlValue(control.id) == param.as_int()) {
           RCLCPP_DEBUG(
-            get_logger(), "Parameter %s already set at requested value: %ld",
-            control.name.c_str(), param.as_int());
+            get_logger(), "Parameter %s already set at requested value: %ld", control.name.c_str(),
+            param.as_int());
           return true;
         }
         return camera_->setControlValue(control_id, param.as_int());
       default:
         RCLCPP_WARN(
-          get_logger(),
-          "Control parameter type not currently supported: %s, for parameter: %s",
+          get_logger(), "Control parameter type not currently supported: %s, for parameter: %s",
           std::to_string(unsigned(param.get_type())).c_str(), param.get_name().c_str());
     }
   } else if (param.get_name() == "output_encoding") {
@@ -257,9 +256,7 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
 {
   if (size.size() != 2) {
     RCLCPP_WARN(
-      get_logger(),
-      "Invalid image size; expected dimensions: 2, actual: %lu",
-      size.size());
+      get_logger(), "Invalid image size; expected dimensions: 2, actual: %lu", size.size());
     return false;
   }
 
@@ -285,8 +282,7 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
 }
 
 bool V4L2Camera::checkCameraInfo(
-  sensor_msgs::msg::Image const & img,
-  sensor_msgs::msg::CameraInfo const & ci)
+  sensor_msgs::msg::Image const & img, sensor_msgs::msg::CameraInfo const & ci)
 {
   return ci.width == img.width && ci.height == img.height;
 }
