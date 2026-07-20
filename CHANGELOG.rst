@@ -2,6 +2,12 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Update CameraInfoManager creation to use latest rolling signature
+* Update formatting to use clang-format instead of uncrustify
+* Contributors: Sander G. van Dijk
+
 0.8.0 (2025-10-12)
 ------------------
 * Make the QoS policies of the publisher configurable
