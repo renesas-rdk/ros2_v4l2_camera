@@ -1,4 +1,4 @@
-image: ros:rolling
+image: ros:jazzy
 
 variables:
   GIT_CLONE_PATH: $CI_BUILDS_DIR/src/ros2_v4l2_camera
@@ -21,4 +21,3 @@ build:
   artifacts:
     reports:
       junit: build/v4l2_camera/test_results/v4l2_camera/*.xunit.xml
-
