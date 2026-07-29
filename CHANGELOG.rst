@@ -2,8 +2,8 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.7.3 (2026-07-29)
+------------------
 * Make publisher topic(s) reconfigurable
 * Fix typo in Raspberry Pi instructions
 * Use image_transport to publish using unique_ptr
