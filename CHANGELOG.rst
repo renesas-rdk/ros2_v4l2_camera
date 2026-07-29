@@ -2,6 +2,14 @@
 Changelog for package v4l2_camera
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Make publisher topic(s) reconfigurable
+* Fix typo in Raspberry Pi instructions
+* Use image_transport to publish using unique_ptr
+* Replace ament_target_dependencies with target_link_libraries
+* Contributors: Alejandro Hernandez Cordero, Błażej Sowa, Sander G. van Dijk
+
 0.7.1 (2024-04-30)
 ------------------
 * Fix deprecated cv_bridge header
