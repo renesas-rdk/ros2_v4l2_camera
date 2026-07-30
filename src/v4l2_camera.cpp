@@ -21,6 +21,8 @@
 
 #include "cv_bridge/cv_bridge.hpp"
 #include "image_transport/image_transport.hpp"
+#include "opencv2/core/utility.hpp"
+#include "rclcpp/logging.hpp"
 #include "v4l2_camera/parameters.hpp"
 
 using namespace std::chrono_literals;
@@ -273,11 +275,15 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
 
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
 {
+  auto n_threads_pre = cv::getNumThreads();
+  auto n_threads = parameters_.getCvtColorNumThreads();
+  cv::setNumThreads(n_threads);
   auto tracked_object = std::shared_ptr<const void>{};
   auto cvImg = cv_bridge::toCvShare(img, tracked_object);
   auto outImg = std::make_unique<sensor_msgs::msg::Image>();
   auto cvConvertedImg = cv_bridge::cvtColor(cvImg, output_encoding_);
   cvConvertedImg->toImageMsg(*outImg);
+  cv::setNumThreads(n_threads_pre);
   return outImg;
 }
 

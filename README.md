@@ -153,6 +153,22 @@ publishes images as `sensor_msgs/Image` messages.
     * `"GREY"`: `"mono8"` (no conversion), `"rgb8"`,
     `"bgr8"`, `"rgba8"` and `"bgra8"`, plus their 16 bit variants
 
+* `cvt_color_num_threads` - `int`, default: `1`
+
+    The number of threads to use for color conversions. The default of
+    `1` disables threading optimizations and is generally the best
+    choice: the overhead of distributing pixel conversions amongst
+    multiple threads can heavily outweigh the benefit of parallel
+    processing.
+
+    **Note**: this uses OpenCV's
+    [`cv::setNumThreads`](https://docs.opencv.org/4.13.0/db/de0/group__core__utils.html#gae78625c3c2aa9e0b83ed31b73c6549c0). The
+    driver only sets it when performing a conversion, and sets it back
+    to the initial value when the conversion is complete. However,
+    this OpenCV setting is process-wide, so it may affect other OpenCV
+    based modules in the same process, such as when composing multiple
+    nodes.
+
 * `image_size` - `integer_array`, default: `[640, 480]`
 
     Width and height of the image.
@@ -186,10 +202,11 @@ publishes images as `sensor_msgs/Image` messages.
 
 This package uses `image_transport` to publish images and make
 compression possible. However, by default it only supports raw
-transfer, additional plugins are required to enable compression. These
-need to be installed separately, either cloning an building [them from
+transfer; additional plugins are required to enable compression. These
+need to be installed separately, either by cloning and building [them
+from
 source](https://github.com/ros-perception/image_transport_plugins), or
-installing the ready made package:
+by installing the ready made package:
 
 ```shell
 sudo apt-get install ros-${ROS_DISTRO}-image-transport-plugins

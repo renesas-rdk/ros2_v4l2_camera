@@ -44,6 +44,7 @@ void Parameters::declareOutputParameters()
     "output_encoding", "rgb8",
     "ROS image encoding to use for the output image. "
     "Can be any supported by cv_bridge given the input pixel format");
+  declareParameter("cvt_color_num_threads", 1, "Number of threads used for color conversions");
 }
 
 void Parameters::declareDeviceParameters(V4l2CameraDevice const & device)
