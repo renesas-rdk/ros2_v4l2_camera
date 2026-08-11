@@ -15,7 +15,9 @@
 #ifndef V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 #define V4L2_CAMERA__V4L2_CAMERA_DEVICE_HPP_
 
+#include <ctime>
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,6 +29,15 @@
 
 namespace v4l2_camera
 {
+
+struct V4l2CaptureResult
+{
+  sensor_msgs::msg::Image::UniquePtr image;
+  timeval buffer_timestamp;
+  timespec dequeue_realtime_timestamp;
+  timespec dequeue_monotonic_timestamp;
+  bool timestamp_is_monotonic;
+};
 
 /** Camera device using Video4Linux2
  */
@@ -68,7 +79,7 @@ public:
 
   std::string getCameraName();
 
-  sensor_msgs::msg::Image::UniquePtr capture();
+  std::optional<V4l2CaptureResult> capture();
 
 private:
   /// Image buffer

@@ -58,6 +58,8 @@ private:
   bool requestPixelFormat(std::string const & fourcc);
   bool requestImageSize(std::vector<int64_t> const & size);
 
+  rclcpp::Time determineStamp(const V4l2CaptureResult & capture_result);
+
   sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
 
   bool checkCameraInfo(

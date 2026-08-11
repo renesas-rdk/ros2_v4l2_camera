@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <ctime>
 #include <map>
 #include <memory>
 #include <string>
@@ -183,10 +184,11 @@ std::string V4l2CameraDevice::getCameraName()
   return name;
 }
 
-Image::UniquePtr V4l2CameraDevice::capture()
+std::optional<v4l2_camera::V4l2CaptureResult> V4l2CameraDevice::capture()
 {
-  auto buf = v4l2_buffer{};
+  auto result = V4l2CaptureResult{};
 
+  auto buf = v4l2_buffer{};
   buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   buf.memory = V4L2_MEMORY_MMAP;
 
@@ -195,41 +197,50 @@ Image::UniquePtr V4l2CameraDevice::capture()
     RCLCPP_ERROR(
       rclcpp::get_logger("v4l2_camera"), "Error dequeueing buffer: %s (%s)", strerror(errno),
       std::to_string(errno).c_str());
-    return nullptr;
+    return {};
   }
 
+  // Capture dequeue time
+  clock_gettime(CLOCK_MONOTONIC, &result.dequeue_monotonic_timestamp);
+  clock_gettime(CLOCK_REALTIME, &result.dequeue_realtime_timestamp);
+
+  auto timestamp_flag = buf.flags & V4L2_BUF_FLAG_TIMESTAMP_MASK;
+  result.timestamp_is_monotonic = timestamp_flag == V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+
   // Create image object
-  auto img = std::make_unique<Image>();
+  result.image = std::make_unique<Image>();
 
   // Copy over buffer data
   auto const & buffer = buffers_[buf.index];
-  img->data.assign(buffer.start, buffer.start + cur_data_format_.imageByteSize);
+  result.image->data.assign(buffer.start, buffer.start + cur_data_format_.imageByteSize);
+
+  result.buffer_timestamp = buf.timestamp;
 
   // Requeue buffer to be reused for new captures
   if (-1 == ioctl(fd_, VIDIOC_QBUF, &buf)) {
     RCLCPP_ERROR(
       rclcpp::get_logger("v4l2_camera"), "Error re-queueing buffer: %s (%s)", strerror(errno),
       std::to_string(errno).c_str());
-    return nullptr;
+    return {};
   }
 
   // Fill in remaining image information
-  img->width = cur_data_format_.width;
-  img->height = cur_data_format_.height;
-  img->step = cur_data_format_.bytesPerLine;
+  result.image->width = cur_data_format_.width;
+  result.image->height = cur_data_format_.height;
+  result.image->step = cur_data_format_.bytesPerLine;
   if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_YUYV) {
-    img->encoding = sensor_msgs::image_encodings::YUV422_YUY2;
+    result.image->encoding = sensor_msgs::image_encodings::YUV422_YUY2;
   } else if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_UYVY) {
-    img->encoding = sensor_msgs::image_encodings::YUV422;
+    result.image->encoding = sensor_msgs::image_encodings::YUV422;
   } else if (cur_data_format_.pixelFormat == V4L2_PIX_FMT_GREY) {
-    img->encoding = sensor_msgs::image_encodings::MONO8;
+    result.image->encoding = sensor_msgs::image_encodings::MONO8;
   } else {
     RCLCPP_WARN(
       rclcpp::get_logger("v4l2_camera"), "Current pixel format is not supported yet: %s %d",
       FourCC::toString(cur_data_format_.pixelFormat).c_str(), cur_data_format_.pixelFormat);
   }
 
-  return img;
+  return result;
 }
 
 int32_t V4l2CameraDevice::getControlValue(uint32_t id) const

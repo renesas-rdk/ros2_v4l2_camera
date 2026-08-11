@@ -24,6 +24,7 @@
 #include "opencv2/core/utility.hpp"
 #include "rclcpp/logging.hpp"
 #include "v4l2_camera/parameters.hpp"
+#include "v4l2_camera/v4l2_camera_device.hpp"
 
 using namespace std::chrono_literals;
 
@@ -78,14 +79,15 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   capture_thread_ = std::thread{[this]() -> void {
     while (rclcpp::ok() && !canceled_.load()) {
       RCLCPP_DEBUG(get_logger(), "Capture...");
-      auto img = camera_->capture();
-      if (img == nullptr) {
+      auto capture_result = camera_->capture();
+      if (!capture_result.has_value()) {
         // Failed capturing image, assume it is temporarily and continue a bit later
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
         continue;
       }
 
-      auto stamp = now();
+      auto stamp = determineStamp(*capture_result);
+      auto & img = capture_result->image;
       if (img->encoding != output_encoding_) {
         RCLCPP_WARN_ONCE(
           get_logger(),
@@ -94,6 +96,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
           img->encoding.c_str(), output_encoding_.c_str());
         img = convert(*img);
       }
+
       img->header.stamp = stamp;
       img->header.frame_id = camera_frame_id_;
 
@@ -107,7 +110,8 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       ci->header.stamp = stamp;
       ci->header.frame_id = camera_frame_id_;
 
-      RCLCPP_DEBUG_STREAM(get_logger(), "Image message address [PUBLISH]:\t" << img.get());
+      RCLCPP_DEBUG(
+        get_logger(), "Image message address [PUBLISH]:\t%p", static_cast<void *>(img.get()));
       camera_transport_pub_.publish(std::move(img), std::move(ci));
     }
   }};
@@ -271,6 +275,49 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
   dataFormat.width = size[0];
   dataFormat.height = size[1];
   return camera_->requestDataFormat(dataFormat);
+}
+
+rclcpp::Time V4L2Camera::determineStamp(const V4l2CaptureResult & capture_result)
+{
+  auto stamp = get_clock()->now();
+  if (capture_result.timestamp_is_monotonic) {
+    auto dequeue_monotonic_ns = capture_result.dequeue_monotonic_timestamp.tv_sec * 1'000'000'000 +
+                                capture_result.dequeue_monotonic_timestamp.tv_nsec;
+    auto dequeue_realtime_ns = capture_result.dequeue_realtime_timestamp.tv_sec * 1'000'000'000 +
+                               capture_result.dequeue_realtime_timestamp.tv_nsec;
+    auto buffer_timestamp_ns = capture_result.buffer_timestamp.tv_sec * 1'000'000'000 +
+                               capture_result.buffer_timestamp.tv_usec * 1'000;
+    auto dequeue_latency_ns = dequeue_monotonic_ns - buffer_timestamp_ns;
+
+    switch (get_clock()->get_clock_type()) {
+      case RCL_SYSTEM_TIME:
+        stamp = rclcpp::Time{dequeue_realtime_ns - dequeue_latency_ns, RCL_SYSTEM_TIME};
+        break;
+      case RCL_STEADY_TIME:
+        // RCL_STEADY_TIME uses CLOCK_MONOTONIC on Linux, matching V4L2 buf.timestamp
+        stamp = rclcpp::Time{dequeue_monotonic_ns - dequeue_latency_ns, RCL_STEADY_TIME};
+        break;
+      case RCL_ROS_TIME:
+        if (get_clock()->ros_time_is_active()) {
+          stamp -= rclcpp::Duration::from_nanoseconds(dequeue_latency_ns);
+        } else {
+          stamp = rclcpp::Time{dequeue_realtime_ns - dequeue_latency_ns, RCL_SYSTEM_TIME};
+        }
+        break;
+      case RCL_CLOCK_UNINITIALIZED:
+        RCLCPP_WARN_THROTTLE(
+          get_logger(), *get_clock(), rclcpp::Duration::from_seconds(1.0).nanoseconds(),
+          "Clock is uninitialized! defaulting image timestamp to 'now'");
+        break;
+    }
+  } else {
+    RCLCPP_WARN_ONCE(
+      get_logger(),
+      "Camera driver may not use MONOTONIC clock! This should only happen on very old Linux "
+      "kernels (<3.9). Unable to adjust for dequeue latency, "
+      "defaulting image timestamps to 'now'");
+  }
+  return stamp;
 }
 
 sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
