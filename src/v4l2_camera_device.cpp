@@ -48,7 +48,12 @@ bool V4l2CameraDevice::open()
   }
 
   // List capabilities
-  ioctl(fd_, VIDIOC_QUERYCAP, &capabilities_);
+  if (-1 == ioctl(fd_, VIDIOC_QUERYCAP, &capabilities_)) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"), "Failed to query capabilities: %s (%s)", strerror(errno),
+      std::to_string(errno).c_str());
+    return false;
+  }
 
   auto canRead = capabilities_.capabilities & V4L2_CAP_READWRITE;
   auto canStream = capabilities_.capabilities & V4L2_CAP_STREAMING;
@@ -67,7 +72,12 @@ bool V4l2CameraDevice::open()
   // Get current data (pixel) format
   auto formatReq = v4l2_format{};
   formatReq.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  ioctl(fd_, VIDIOC_G_FMT, &formatReq);
+  if (-1 == ioctl(fd_, VIDIOC_G_FMT, &formatReq)) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"), "Failed getting current pixel format: %s (%s)",
+      strerror(errno), std::to_string(errno).c_str());
+    return false;
+  }
   cur_data_format_ = PixelFormat{formatReq.fmt.pix};
 
   RCLCPP_INFO(
@@ -155,7 +165,12 @@ bool V4l2CameraDevice::stop()
   req.count = 0;
   req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   req.memory = V4L2_MEMORY_MMAP;
-  ioctl(fd_, VIDIOC_REQBUFS, &req);
+  if (-1 == ioctl(fd_, VIDIOC_REQBUFS, &req)) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"), "Failed freeing buffers: %s (%s)", strerror(errno),
+      std::to_string(errno).c_str());
+    return false;
+  }
 
   return true;
 }
@@ -439,7 +454,12 @@ bool V4l2CameraDevice::initMemoryMapping()
   req.count = 4;
   req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   req.memory = V4L2_MEMORY_MMAP;
-  ioctl(fd_, VIDIOC_REQBUFS, &req);
+  if (-1 == ioctl(fd_, VIDIOC_REQBUFS, &req)) {
+    RCLCPP_ERROR(
+      rclcpp::get_logger("v4l2_camera"), "Failed to request buffers: %s (%s)", strerror(errno),
+      std::to_string(errno).c_str());
+    return false;
+  }
 
   // Didn't get more than 1 buffer
   if (req.count < 2) {
@@ -456,7 +476,12 @@ bool V4l2CameraDevice::initMemoryMapping()
     buf.memory = V4L2_MEMORY_MMAP;
     buf.index = i;
 
-    ioctl(fd_, VIDIOC_QUERYBUF, &buf);
+    if (-1 == ioctl(fd_, VIDIOC_QUERYBUF, &buf)) {
+      RCLCPP_ERROR(
+        rclcpp::get_logger("v4l2_camera"), "Failed to query buffer: %s (%s)", strerror(errno),
+        std::to_string(errno).c_str());
+      return false;
+    }
 
     buffers_[i].index = buf.index;
     buffers_[i].length = buf.length;
