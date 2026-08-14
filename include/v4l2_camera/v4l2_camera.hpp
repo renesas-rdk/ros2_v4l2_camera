@@ -39,6 +39,7 @@ private:
   Parameters parameters_;
 
   std::shared_ptr<V4l2CameraDevice> camera_;
+  std::mutex camera_mutex_;
 
   image_transport::CameraPublisher camera_transport_pub_;
 
@@ -60,7 +61,8 @@ private:
 
   rclcpp::Time determineStamp(const V4l2CaptureResult & capture_result);
 
-  sensor_msgs::msg::Image::UniquePtr convert(sensor_msgs::msg::Image const & img) const;
+  sensor_msgs::msg::Image::UniquePtr convert(
+    sensor_msgs::msg::Image const & img, const std::string & output_encoding) const;
 
   bool checkCameraInfo(
     sensor_msgs::msg::Image const & img, sensor_msgs::msg::CameraInfo const & ci);

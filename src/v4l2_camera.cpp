@@ -15,6 +15,8 @@
 #include "v4l2_camera/v4l2_camera.hpp"
 
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -79,7 +81,15 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   capture_thread_ = std::thread{[this]() -> void {
     while (rclcpp::ok() && !canceled_.load()) {
       RCLCPP_DEBUG(get_logger(), "Capture...");
-      auto capture_result = camera_->capture();
+      auto capture_result = std::optional<V4l2CaptureResult>{};
+      auto output_encoding = std::string{};
+      {
+        auto lock = std::lock_guard{camera_mutex_};
+        capture_result = camera_->capture();
+        // Snapshot output encoding under lock since it can be changed
+        // by parameter handling
+        output_encoding = output_encoding_;
+      }
       if (!capture_result.has_value()) {
         // Failed capturing image, assume it is temporarily and continue a bit later
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -88,13 +98,13 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 
       auto stamp = determineStamp(*capture_result);
       auto & img = capture_result->image;
-      if (img->encoding != output_encoding_) {
+      if (img->encoding != output_encoding) {
         RCLCPP_WARN_ONCE(
           get_logger(),
           "Image encoding not the same as requested output, performing possibly slow conversion: "
           "%s => %s",
-          img->encoding.c_str(), output_encoding_.c_str());
-        img = convert(*img);
+          img->encoding.c_str(), output_encoding.c_str());
+        img = convert(*img, output_encoding);
       }
 
       img->header.stamp = stamp;
@@ -183,6 +193,9 @@ void V4L2Camera::applyParameters()
 
 bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
 {
+  // Lazily lock whole callback: it's short and changes are rare
+  auto lock = std::lock_guard{camera_mutex_};
+
   auto name = param.get_name();
   if (parameters_.isControlParameter(param)) {
     auto control_id = parameters_.getControlId(param);
@@ -320,7 +333,8 @@ rclcpp::Time V4L2Camera::determineStamp(const V4l2CaptureResult & capture_result
   return stamp;
 }
 
-sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image const & img) const
+sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(
+  sensor_msgs::msg::Image const & img, const std::string & output_encoding) const
 {
   auto n_threads_pre = cv::getNumThreads();
   auto n_threads = parameters_.getCvtColorNumThreads();
@@ -328,7 +342,7 @@ sensor_msgs::msg::Image::UniquePtr V4L2Camera::convert(sensor_msgs::msg::Image c
   auto tracked_object = std::shared_ptr<const void>{};
   auto cvImg = cv_bridge::toCvShare(img, tracked_object);
   auto outImg = std::make_unique<sensor_msgs::msg::Image>();
-  auto cvConvertedImg = cv_bridge::cvtColor(cvImg, output_encoding_);
+  auto cvConvertedImg = cv_bridge::cvtColor(cvImg, output_encoding);
   cvConvertedImg->toImageMsg(*outImg);
   cv::setNumThreads(n_threads_pre);
   return outImg;
