@@ -21,6 +21,7 @@
 
 #include "camera_info_manager/camera_info_manager.hpp"
 #include "image_transport/camera_publisher.hpp"
+#include "sensor_msgs/msg/time_reference.hpp"
 #include "v4l2_camera/parameters.hpp"
 #include "v4l2_camera/v4l2_camera_device.hpp"
 #include "v4l2_camera/visibility_control.h"
@@ -42,6 +43,7 @@ private:
   std::mutex camera_mutex_;
 
   image_transport::CameraPublisher camera_transport_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::TimeReference>::SharedPtr camera_timeref_pub_;
 
   std::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
 

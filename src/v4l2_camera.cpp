@@ -25,6 +25,7 @@
 #include "image_transport/image_transport.hpp"
 #include "opencv2/core/utility.hpp"
 #include "rclcpp/logging.hpp"
+#include "sensor_msgs/msg/time_reference.hpp"
 #include "v4l2_camera/parameters.hpp"
 #include "v4l2_camera/v4l2_camera_device.hpp"
 
@@ -46,6 +47,10 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
   publisher_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   camera_transport_pub_ = image_transport::create_camera_publisher(
     *this, "image_raw", rclcpp::SystemDefaultsQoS{}, publisher_options);
+
+  // Time reference publisher
+  camera_timeref_pub_ = create_publisher<sensor_msgs::msg::TimeReference>(
+    "camera_time_ref", rclcpp::SystemDefaultsQoS{}, publisher_options);
 
   parameters_.declareStaticParameters();
   parameters_.declareOutputParameters();
@@ -120,9 +125,18 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       ci->header.stamp = stamp;
       ci->header.frame_id = camera_frame_id_;
 
+      auto time_ref = std::make_unique<sensor_msgs::msg::TimeReference>();
+      time_ref->header.stamp = img->header.stamp;
+      // not required, but could help with multiple cameras
+      time_ref->header.frame_id = img->header.frame_id;
+      time_ref->source = "v4l2_buffer";
+      time_ref->time_ref.sec = capture_result->buffer_timestamp.tv_sec;
+      time_ref->time_ref.nanosec = capture_result->buffer_timestamp.tv_usec * 1'000;
+
       RCLCPP_DEBUG(
         get_logger(), "Image message address [PUBLISH]:\t%p", static_cast<void *>(img.get()));
       camera_transport_pub_.publish(std::move(img), std::move(ci));
+      camera_timeref_pub_->publish(std::move(time_ref));
     }
   }};
 }
