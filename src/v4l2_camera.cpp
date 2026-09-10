@@ -16,6 +16,7 @@
 
 #include "v4l2_camera/v4l2_camera.hpp"
 
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -35,6 +36,23 @@ using namespace std::chrono_literals;
 
 namespace v4l2_camera
 {
+
+namespace
+{
+/// Narrow a 64-bit parameter value to the int32_t domain of a V4L2 control.
+/// Returns false when the value does not fit, so the caller can reject it
+/// instead of silently wrapping.
+bool toControlValue(int64_t value, int32_t & out)
+{
+  if (value < std::numeric_limits<int32_t>::min() ||
+      value > std::numeric_limits<int32_t>::max()) {
+    return false;
+  }
+  out = static_cast<int32_t>(value);
+  return true;
+}
+}  // namespace
+
 
 V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
 : rclcpp::Node{"v4l2_camera", options},
@@ -68,9 +86,7 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
     get_node_base_interface(), get_node_services_interface(), get_node_logging_interface(),
     camera_->getCameraName(),
     "",  // camera_info_url - loaded later in applyParameters()
-    rclcpp::SystemDefaultsQoS{},
-    ""  // namespace
-  );
+    rclcpp::SystemDefaultsQoS{}.get_rmw_qos_profile());
   parameters_.declareDeviceParameters(*camera_);
 
   // Read parameters and set up callback
@@ -132,8 +148,9 @@ V4L2Camera::V4L2Camera(rclcpp::NodeOptions const & options)
       // not required, but could help with multiple cameras
       time_ref->header.frame_id = img->header.frame_id;
       time_ref->source = "v4l2_buffer";
-      time_ref->time_ref.sec = capture_result->buffer_timestamp.tv_sec;
-      time_ref->time_ref.nanosec = capture_result->buffer_timestamp.tv_usec * 1'000;
+      time_ref->time_ref.sec = static_cast<int32_t>(capture_result->buffer_timestamp.tv_sec);
+      time_ref->time_ref.nanosec =
+        static_cast<uint32_t>(capture_result->buffer_timestamp.tv_usec * 1'000);
 
       RCLCPP_DEBUG(
         get_logger(), "Image message address [PUBLISH]:\t%p", static_cast<void *>(img.get()));
@@ -193,12 +210,20 @@ void V4L2Camera::applyParameters()
         }
         camera_->setControlValue(control_id, param.as_bool());
         break;
-      case rclcpp::ParameterType::PARAMETER_INTEGER:
-        if (camera_->getControlValue(control.id) == param.as_int()) {
+      case rclcpp::ParameterType::PARAMETER_INTEGER: {
+        int32_t control_value{};
+        if (!toControlValue(param.as_int(), control_value)) {
+          RCLCPP_WARN(
+            get_logger(), "Control value out of range for %s: %ld", control.name.c_str(),
+            param.as_int());
+          break;
+        }
+        if (camera_->getControlValue(control.id) == control_value) {
           continue;
         }
-        camera_->setControlValue(control_id, param.as_int());
+        camera_->setControlValue(control_id, control_value);
         break;
+      }
       default:
         RCLCPP_WARN(
           get_logger(), "Control parameter type not currently supported: %d, for parameter: %s",
@@ -229,14 +254,22 @@ bool V4L2Camera::handleParameter(rclcpp::Parameter const & param)
           return true;
         }
         return camera_->setControlValue(control_id, param.as_bool());
-      case rclcpp::ParameterType::PARAMETER_INTEGER:
-        if (camera_->getControlValue(control.id) == param.as_int()) {
+      case rclcpp::ParameterType::PARAMETER_INTEGER: {
+        int32_t control_value{};
+        if (!toControlValue(param.as_int(), control_value)) {
+          RCLCPP_WARN(
+            get_logger(), "Control value out of range for %s: %ld", control.name.c_str(),
+            param.as_int());
+          return false;
+        }
+        if (camera_->getControlValue(control.id) == control_value) {
           RCLCPP_DEBUG(
             get_logger(), "Parameter %s already set at requested value: %ld", control.name.c_str(),
             param.as_int());
           return true;
         }
-        return camera_->setControlValue(control_id, param.as_int());
+        return camera_->setControlValue(control_id, control_value);
+      }
       default:
         RCLCPP_WARN(
           get_logger(), "Control parameter type not currently supported: %s, for parameter: %s",
@@ -295,14 +328,21 @@ bool V4L2Camera::requestImageSize(std::vector<int64_t> const & size)
     return false;
   }
 
+  constexpr int64_t max_dimension = std::numeric_limits<unsigned>::max();
+  if (size[0] < 0 || size[0] > max_dimension || size[1] < 0 || size[1] > max_dimension) {
+    RCLCPP_WARN(
+      get_logger(), "Invalid image size; dimensions out of range: %ld x %ld", size[0], size[1]);
+    return false;
+  }
+
   auto dataFormat = camera_->getCurrentDataFormat();
   // Do not apply if camera already runs at given size
   if (dataFormat.width == size[0] && dataFormat.height == size[1]) {
     return true;
   }
 
-  dataFormat.width = size[0];
-  dataFormat.height = size[1];
+  dataFormat.width = static_cast<unsigned>(size[0]);
+  dataFormat.height = static_cast<unsigned>(size[1]);
   return camera_->requestDataFormat(dataFormat);
 }
 

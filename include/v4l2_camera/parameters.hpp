@@ -79,7 +79,10 @@ public:
 
   std::string getOutputEncoding() const { return getValue<std::string>("output_encoding"); }
 
-  int getCvtColorNumThreads() const { return getValue<int>("cvt_color_num_threads"); }
+  int getCvtColorNumThreads() const
+  {
+    return static_cast<int>(getValue<int64_t>("cvt_color_num_threads"));
+  }
 
   std::string getPixelFormat() const { return getValue<std::string>("pixel_format"); }
   std::vector<int64_t> getImageSize() const { return getValue<std::vector<int64_t>>("image_size"); }
